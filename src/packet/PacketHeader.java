@@ -125,4 +125,28 @@ public class PacketHeader {
     public PacketType getType() {
         return type;
     }
+
+    public InetAddress getDestIp() {
+        return destIp;
+    }
+
+    public InetAddress getSourceIp() {
+        return sourceIp;
+    }
+
+    public int getSourcePort() {
+        return sourcePort;
+    }
+
+    public int getDestPort() {
+        return destPort;
+    }
+
+    public int getPacketLength() {
+        return packetLength;
+    }
+
+    public int getChecksum() {
+        return checksum;
+    }
 }

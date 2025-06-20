@@ -84,4 +84,7 @@ public class Packet {
         }
     }
 
+    public Payload getPayload() {
+        return payload;
+    }
 }
