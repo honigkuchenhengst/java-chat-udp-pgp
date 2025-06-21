@@ -39,6 +39,8 @@ public class MessagePayload extends Payload {
         return new MessagePayload(messageId, chunkNumber, totalChunks, messageText);
     }
 
+
+
     @Override
     public String toString() {
         return "MessagePayload{" +
