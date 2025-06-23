@@ -67,6 +67,17 @@ public class RoutingTable {
         );
     }
 
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Aktuelle RoutingTable:\n");
+        for (RoutingEntry entry : entries) {
+            sb.append(entry.toString()).append("\n");
+        }
+        return sb.toString();
+    }
+
+
     // Hilfsklasse für Rückgabe des Headers + Tabelle
     public static class DeserializedRoutingTable {
         public InetAddress sourceIP;

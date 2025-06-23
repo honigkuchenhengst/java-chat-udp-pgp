@@ -47,6 +47,8 @@ public class RoutingManager {
         scheduler.execute(this::receiveLoop);
         // Start periodisches Senden alle 10 Sekunden
         scheduler.scheduleAtFixedRate(this::sendUpdatesToNeighbors, 0, 10, TimeUnit.SECONDS);
+        // Zusätzlich: alle 15 Sekunden RoutingTable ausgeben
+        scheduler.scheduleAtFixedRate(this::printRoutingTable, 5, 15, TimeUnit.SECONDS);
     }
 
     private void receiveLoop() {
@@ -116,7 +118,7 @@ public class RoutingManager {
                             sourcePort,
                             newHopCount
                     ));
-                    System.out.println("Neuer Eintrag gelernt: " + receivedEntry.getDestinationIP());
+                    System.out.println("Neuer Eintrag gelernt: " + receivedEntry.getDestinationIP() + ":" + receivedEntry.getDestinationPort());
                 } else if (existingOpt.isPresent()) {
                     RoutingEntry existing = existingOpt.get();
 

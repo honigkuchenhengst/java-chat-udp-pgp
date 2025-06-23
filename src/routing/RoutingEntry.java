@@ -57,6 +57,17 @@ public class RoutingEntry {
         );
     }
 
+    @Override
+    public String toString() {
+        return String.format(
+                "Ziel: %s:%d | NextHop: %s:%d | HopCount: %d",
+                destinationIP.getHostAddress(), destinationPort,
+                nextHopIP.getHostAddress(), nextHopPort,
+                hopCount
+        );
+    }
+
+
     // Getter für später
     public InetAddress getDestinationIP() { return destinationIP; }
     public int getDestinationPort() { return destinationPort; }
