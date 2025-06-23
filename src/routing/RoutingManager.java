@@ -20,7 +20,7 @@ public class RoutingManager {
         this.ownPort = ownPort;
         this.routingTable = new RoutingTable();
         this.neighbors = new ArrayList<>();
-        this.socket = new DatagramSocket(ownPort);
+        this.socket = new DatagramSocket(new InetSocketAddress(ownIP, ownPort));
         this.scheduler = Executors.newScheduledThreadPool(2);
         this.inf = 16;
         initOwnEntry();
@@ -53,7 +53,7 @@ public class RoutingManager {
         scheduler.execute(this::receiveLoop);
         // Start periodisches Senden alle 10 Sekunden
         scheduler.scheduleAtFixedRate(this::sendUpdatesToNeighbors, 0, 10, TimeUnit.SECONDS);
-        // Zusätzlich: alle 15 Sekunden RoutingTable ausgeben
+        // Zusätzlich: alle 15 Sekunden RoutingTable ausgeben, vermeidet synchrone ausgaben (man sieht auch mal enträge zwischen zwei Sendungen)
         scheduler.scheduleAtFixedRate(this::printRoutingTable, 5, 10, TimeUnit.SECONDS);
     }
 

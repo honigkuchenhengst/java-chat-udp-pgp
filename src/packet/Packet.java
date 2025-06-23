@@ -63,7 +63,7 @@ public class Packet {
             int checksum = 0;
 
             PacketHeader header = new PacketHeader(sourceIP, sourcePort, destIP, destPort, type, length, checksum);
-            MessagePayload payload = new MessagePayload(42, 1, 5, "Hallo, Moin, ich bins der Glookers");
+            MessagePayload payload = new MessagePayload(42, 1, 5, "Hallo, Moin, ich bins der Glookerß");
 
             Packet packet = new Packet(header, payload);
 

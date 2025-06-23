@@ -17,8 +17,9 @@ public class MessagePayload extends Payload {
     }
 
     public byte[] serialize() {
-        byte[] textBytes = messageText.getBytes(StandardCharsets.UTF_8);
+        byte[] textBytes = messageText.getBytes(StandardCharsets.US_ASCII);
         ByteBuffer buffer = ByteBuffer.allocate(2 + 4 + 4 + 2 + textBytes.length);
+        //TODO Header durch chunking header ersetzen
         buffer.putShort((short) messageId);
         buffer.putInt(chunkNumber);
         buffer.putInt(totalChunks);
@@ -35,7 +36,7 @@ public class MessagePayload extends Payload {
         int textLength = buffer.getShort() & 0xFFFF;
         byte[] textBytes = new byte[textLength];
         buffer.get(textBytes);
-        String messageText = new String(textBytes, StandardCharsets.UTF_8);
+        String messageText = new String(textBytes, StandardCharsets.US_ASCII);
         return new MessagePayload(messageId, chunkNumber, totalChunks, messageText);
     }
 

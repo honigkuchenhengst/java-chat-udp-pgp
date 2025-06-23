@@ -28,7 +28,7 @@ public class RoutingEntry {
         buffer.put(nextHopIP.getAddress()); // 4 Byte
         buffer.putShort((short) nextHopPort); // 2 Byte
         buffer.put((byte) hopCount); // 1 Byte
-        buffer.put(new byte[3]); // 3 Null-Bytes
+        buffer.put(new byte[3]); // 3 Null-Bytes als Prüfsumme
         return buffer.array();
     }
 
@@ -36,7 +36,7 @@ public class RoutingEntry {
         ByteBuffer buffer = ByteBuffer.wrap(data);
         byte[] destIPBytes = new byte[4];
         buffer.get(destIPBytes);
-        int destPort = buffer.getShort() & 0xFFFF;
+        int destPort = buffer.getShort() & 0xFFFF; //signed zu unsigned, sonst negativer int wert
         byte[] nextIPBytes = new byte[4];
         buffer.get(nextIPBytes);
         int nextPort = buffer.getShort() & 0xFFFF;
