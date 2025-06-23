@@ -1,5 +1,6 @@
 package routing;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
@@ -45,7 +46,7 @@ public class RoutingTable {
     }
 
     // Deserialisiert kompletten Frame (Header + Tabelle)
-    public static DeserializedRoutingTable deserializeWithHeader(byte[] data) throws UnknownHostException {
+    public static DeserializedRoutingTable deserializeWithHeader(byte[] data) throws UnknownHostException, IllegalArgumentException {
         ByteBuffer buffer = ByteBuffer.wrap(data);
 
         byte[] srcIPBytes = new byte[4];
@@ -60,6 +61,7 @@ public class RoutingTable {
         for (int i = 0; i < tableLength; i += 16) {
             byte[] entryData = new byte[16];
             buffer.get(entryData);
+            //TODO gesonderter Umgang mit IllegalArgumentExc
             RoutingEntry entry = RoutingEntry.deserialize(entryData);
             table.addEntry(entry);
         }

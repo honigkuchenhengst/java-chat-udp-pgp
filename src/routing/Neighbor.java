@@ -1,6 +1,7 @@
 package routing;
 
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 public class Neighbor {
     private final InetAddress ip;

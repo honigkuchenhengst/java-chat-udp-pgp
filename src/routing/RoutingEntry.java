@@ -32,7 +32,7 @@ public class RoutingEntry {
         return buffer.array();
     }
 
-    public static RoutingEntry deserialize(byte[] data) throws UnknownHostException {
+    public static RoutingEntry deserialize(byte[] data) throws UnknownHostException, IllegalArgumentException {
         ByteBuffer buffer = ByteBuffer.wrap(data);
         byte[] destIPBytes = new byte[4];
         buffer.get(destIPBytes);

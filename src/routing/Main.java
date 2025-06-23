@@ -5,6 +5,7 @@ import java.net.*;
 public class Main {
     public static void main(String[] args) {
         try {
+            //TODO manpage oder -help o.Ä.
             if (args.length < 1) {
                 System.out.println("Usage: java routing.Main <ownPort> [neighborIP:neighborPort] ...");
                 return;
