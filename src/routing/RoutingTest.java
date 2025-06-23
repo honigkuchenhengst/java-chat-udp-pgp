@@ -15,14 +15,16 @@ public class RoutingTest {
 
         // Starten der Manager (startet Threads)
         nodeA.start();
+        Thread.sleep(2000);
         nodeB.start();
+        Thread.sleep(2000);
         nodeC.start();
 
         // Einfach laufen lassen zum Beobachten
-        Thread.sleep(60000);  // 60 Sekunden laufen lassen
+        Thread.sleep(20000);  // 60 Sekunden laufen lassen
 
         nodeA.stop();
-        nodeB.stop();
-        nodeC.stop();
+
+        Thread.sleep(170000);
     }
 }

@@ -68,10 +68,12 @@ public class RoutingEntry {
     }
 
 
+
     // Getter für später
     public InetAddress getDestinationIP() { return destinationIP; }
     public int getDestinationPort() { return destinationPort; }
     public InetAddress getNextHopIP() { return nextHopIP; }
     public int getNextHopPort() { return nextHopPort; }
     public int getHopCount() { return hopCount; }
+    public void setHopCount(int hopCount) { this.hopCount = hopCount; }
 }

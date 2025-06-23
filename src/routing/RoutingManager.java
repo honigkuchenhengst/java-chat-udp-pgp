@@ -21,10 +21,11 @@ public class RoutingManager {
         this.routingTable = new RoutingTable();
         this.neighbors = new ArrayList<>();
         this.socket = new DatagramSocket(new InetSocketAddress(ownIP, ownPort));
-        this.scheduler = Executors.newScheduledThreadPool(2);
+        this.scheduler = Executors.newScheduledThreadPool(3);
         this.inf = 16;
         initOwnEntry();
     }
+
 
     private void initOwnEntry() {
         routingTable.addEntry(new RoutingEntry(
@@ -55,9 +56,10 @@ public class RoutingManager {
         scheduler.scheduleAtFixedRate(this::sendUpdatesToNeighbors, 0, 10, TimeUnit.SECONDS);
         // Zusätzlich: alle 15 Sekunden RoutingTable ausgeben, vermeidet synchrone ausgaben (man sieht auch mal enträge zwischen zwei Sendungen)
         scheduler.scheduleAtFixedRate(this::printRoutingTable, 5, 10, TimeUnit.SECONDS);
+        scheduler.scheduleAtFixedRate(this::checkForUnreachability, 7, 10, TimeUnit.SECONDS);
     }
 
-    private void receiveLoop() {
+    public void receiveLoop() {
         byte[] buf = new byte[2048];
         while (true) {
             try {
@@ -136,10 +138,13 @@ public class RoutingManager {
 
                 } else if (existingOpt.isPresent()) {
                     RoutingEntry existingEntry = existingOpt.get();
-                    Neighbor tmpNeighbor = new Neighbor(existingEntry.getDestinationIP(), existingEntry.getDestinationPort());
-                    if( this.neighbors.contains(tmpNeighbor)) {
-                        //aktualisiere Timer
-                        neighbors.get(neighbors.indexOf(tmpNeighbor)).updateTimestamp();
+                    if (sourceIP.equals(existingEntry.getDestinationIP()) && sourcePort == existingEntry.getDestinationPort()) {
+                        Neighbor tmpNeighbor = new Neighbor(existingEntry.getDestinationIP(), existingEntry.getDestinationPort());
+                        if (this.neighbors.contains(tmpNeighbor)) {
+                            //aktualisiere Timer
+                            neighbors.get(neighbors.indexOf(tmpNeighbor)).updateTimestamp();
+                            neighbors.get(neighbors.indexOf(tmpNeighbor)).setTimerInfOrDelete(true);
+                        }
                     }
 
                     if (existingEntry.getNextHopIP().equals(sourceIP) && existingEntry.getNextHopPort() == sourcePort && newHopCount != existingEntry.getHopCount()) {
@@ -191,6 +196,30 @@ public class RoutingManager {
                 e.printStackTrace();
             }
         }
+    }
+
+    private void checkForUnreachability() {
+        for(Neighbor neighbor : neighbors) {
+            RoutingEntry entry = routingTable.getEntries().stream()
+                    .filter(e -> e.getDestinationIP().equals(neighbor.getIp()) &&
+                            e.getDestinationPort() == neighbor.getPort())
+                    .findFirst().orElse(null);
+            if (entry == null) {
+                continue;
+            }
+            if(neighbor.getTimerInfOrDelete() && System.currentTimeMillis() -neighbor.getLastUpdateTime() > 30_000){
+                neighbor.setTimerInfOrDelete(false);
+                neighbor.updateTimestamp();
+                int neighborId = this.routingTable.getEntries().indexOf(entry);
+                this.routingTable.getEntries().get(neighborId).setHopCount(inf);
+            } else if(!neighbor.getTimerInfOrDelete() && System.currentTimeMillis() -neighbor.getLastUpdateTime() > 90_000){
+                this.routingTable.getEntries().remove(entry);
+                this.neighbors.remove(neighbor);
+            }
+        }
+
+
+
     }
 
     private void sendUpdatesToNeighbors(Neighbor neighbor2Skip) {
