@@ -10,9 +10,10 @@ public class RoutingManager {
     private InetAddress ownIP;
     private int ownPort;
     private RoutingTable routingTable;
-    private Set<Neighbor> neighbors;
+    private Set<Neighbor> neighbors; //TODO Lieber ne andere Datenstruktur um Timer besser aktualisieren zu können?
     private DatagramSocket socket;
     private ScheduledExecutorService scheduler;
+    private int inf;
 
     public RoutingManager(InetAddress ownIP, int ownPort) throws SocketException {
         this.ownIP = ownIP;
@@ -21,6 +22,7 @@ public class RoutingManager {
         this.neighbors = new HashSet<>();
         this.socket = new DatagramSocket(ownPort);
         this.scheduler = Executors.newScheduledThreadPool(2);
+        this.inf = 16;
         initOwnEntry();
     }
 
@@ -35,11 +37,15 @@ public class RoutingManager {
     public void addNeighbor(InetAddress neighborIP, int neighborPort) {
         neighbors.add(new Neighbor(neighborIP, neighborPort));
         // Trage Nachbar initial mit HopCount 1 ein
+        //TODO halte ich für keine gute Idee, wenn es den Nachbar nicht gibt hat man ihn trotzdem in der Tabelle
+        /*
         routingTable.addEntry(new RoutingEntry(
                 neighborIP, neighborPort,
                 neighborIP, neighborPort,
                 1
         ));
+                */
+
     }
 
     public void start() {
@@ -75,7 +81,8 @@ public class RoutingManager {
             boolean isNeighbor = neighbors.stream()
                     .anyMatch(n -> n.getIp().equals(sourceIP) && n.getPort() == sourcePort);
 
-            if (!isNeighbor) {
+            //Checke ob Tabelle nicht von Nachbarn oder neuem Knoten kommt
+            if (!isNeighbor && deserialized.table.getSize() > 1) {
                 System.out.println("Empfangen von Nicht-Nachbar. Ignoriere.");
                 return;
             }
@@ -107,9 +114,9 @@ public class RoutingManager {
                         .findFirst();
 
                 int newHopCount = receivedEntry.getHopCount() + 1;
-                if (newHopCount >= 16) newHopCount = 16; // Infinity-Value
+                if (newHopCount >= inf) newHopCount = inf;
 
-                if (existingOpt.isEmpty() && newHopCount < 16) {
+                if (existingOpt.isEmpty() && newHopCount < inf) {
                     // Neuer Eintrag
                     routingTable.addEntry(new RoutingEntry(
                             receivedEntry.getDestinationIP(),
@@ -118,26 +125,36 @@ public class RoutingManager {
                             sourcePort,
                             newHopCount
                     ));
+                    //Neuer Eintrag ist auch Nachbar
+                    if(newHopCount == 1){
+                        this.neighbors.add(new Neighbor(receivedEntry.getDestinationIP(), receivedEntry.getDestinationPort()));
+                    }
                     System.out.println("Neuer Eintrag gelernt: " + receivedEntry.getDestinationIP() + ":" + receivedEntry.getDestinationPort());
-                } else if (existingOpt.isPresent()) {
-                    RoutingEntry existing = existingOpt.get();
 
-                    if (existing.getNextHopIP().equals(sourceIP) && existing.getNextHopPort() == sourcePort) {
+                } else if (existingOpt.isPresent()) {
+                    RoutingEntry existingEntry = existingOpt.get();
+                    Neighbor tmpNeighbor = new Neighbor(existingEntry.getDestinationIP(), existingEntry.getDestinationPort());
+                    if( this.neighbors.contains(tmpNeighbor)) {
+                        //TODO aktualisiere Timer
+                    }
+
+                    if (existingEntry.getNextHopIP().equals(sourceIP) && existingEntry.getNextHopPort() == sourcePort) {
                         // Update direkt vom bekannten NextHop
-                        routingTable.getEntries().remove(existing);
+                        routingTable.getEntries().remove(existingEntry);
                         routingTable.addEntry(new RoutingEntry(
-                                existing.getDestinationIP(),
-                                existing.getDestinationPort(),
+                                existingEntry.getDestinationIP(),
+                                existingEntry.getDestinationPort(),
                                 sourceIP,
                                 sourcePort,
                                 newHopCount
                         ));
-                    } else if (newHopCount < existing.getHopCount()) {
+
+                    } else if (newHopCount < existingEntry.getHopCount()) {
                         // Besserer Pfad gefunden
-                        routingTable.getEntries().remove(existing);
+                        routingTable.getEntries().remove(existingEntry);
                         routingTable.addEntry(new RoutingEntry(
-                                existing.getDestinationIP(),
-                                existing.getDestinationPort(),
+                                existingEntry.getDestinationIP(),
+                                existingEntry.getDestinationPort(),
                                 sourceIP,
                                 sourcePort,
                                 newHopCount
@@ -145,6 +162,7 @@ public class RoutingManager {
                     }
                 }
             } catch (Exception e) {
+                System.err.println(e.getMessage());
                 e.printStackTrace();
             }
         }

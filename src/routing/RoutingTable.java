@@ -8,7 +8,7 @@ import java.util.List;
 
 public class RoutingTable {
 
-    private List<RoutingEntry> entries;
+    private List<RoutingEntry> entries; //TODO Warum nicht dict, dann könnte man die zieladressen als key nutzen und sich den komischen optional ausdruck in RoutingManager sparen
 
     public RoutingTable() {
         this.entries = new ArrayList<>();
@@ -20,6 +20,10 @@ public class RoutingTable {
 
     public List<RoutingEntry> getEntries() {
         return entries;
+    }
+
+    public int getSize() {
+        return entries.size();
     }
 
     // Serialisiert den Header + RoutingTable

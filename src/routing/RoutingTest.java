@@ -9,10 +9,9 @@ public class RoutingTest {
         RoutingManager nodeC = new RoutingManager(InetAddress.getByName("127.0.0.1"), 5004);
 
         // Nachbarn hinzufügen
-        nodeA.addNeighbor(InetAddress.getByName("127.0.0.1"), 5002);  // A <-> B
-        nodeB.addNeighbor(InetAddress.getByName("127.0.0.1"), 5000);  // B <-> A
-        nodeB.addNeighbor(InetAddress.getByName("127.0.0.1"), 5004);  // B <-> C
-        nodeC.addNeighbor(InetAddress.getByName("127.0.0.1"), 5002);  // C <-> B
+        nodeA.addNeighbor(InetAddress.getByName("127.0.0.1"), 5002);  // A <-> B && B <-> A
+        nodeB.addNeighbor(InetAddress.getByName("127.0.0.1"), 5004);  // B <-> C && C <-> B
+        nodeA.addNeighbor(InetAddress.getByName("127.0.0.1"), 5004);  // A <-> C && C <-> A
 
         // Starten der Manager (startet Threads)
         nodeA.start();
