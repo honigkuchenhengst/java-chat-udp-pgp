@@ -131,23 +131,35 @@ public class RoutingManager {
                     ));
                     //Neuer Eintrag ist auch Nachbar
                     if(newHopCount == 1){
-                        this.neighbors.add(new Neighbor(receivedEntry.getDestinationIP(), receivedEntry.getDestinationPort()));
+                        this.neighbors.add(new Neighbor(sourceIP, sourcePort));
                     }
                     updated = true;
                     System.out.println("Neuer Eintrag gelernt: " + receivedEntry.getDestinationIP() + ":" + receivedEntry.getDestinationPort());
 
                 } else if (existingOpt.isPresent()) {
                     RoutingEntry existingEntry = existingOpt.get();
-                    if (sourceIP.equals(existingEntry.getDestinationIP()) && sourcePort == existingEntry.getDestinationPort()) {
-                        Neighbor tmpNeighbor = new Neighbor(existingEntry.getDestinationIP(), existingEntry.getDestinationPort());
+                    //if (sourceIP.equals(existingEntry.getDestinationIP()) && sourcePort == existingEntry.getDestinationPort()) {
+                        Neighbor tmpNeighbor = new Neighbor(sourceIP, sourcePort);
                         if (this.neighbors.contains(tmpNeighbor)) {
                             //aktualisiere Timer
                             neighbors.get(neighbors.indexOf(tmpNeighbor)).updateTimestamp();
                             neighbors.get(neighbors.indexOf(tmpNeighbor)).setTimerInfOrDelete(true);
                         }
+                    //}
+
+                    if(newHopCount == 1 && newHopCount != existingEntry.getHopCount() && sourceIP.equals(existingEntry.getDestinationIP()) && sourcePort == existingEntry.getDestinationPort()){
+                        this.neighbors.add(new Neighbor(sourceIP, sourcePort));
+                        routingTable.getEntries().remove(existingEntry);
+                        routingTable.addEntry(new RoutingEntry(
+                                existingEntry.getDestinationIP(),
+                                existingEntry.getDestinationPort(),
+                                sourceIP,
+                                sourcePort,
+                                newHopCount));
+                        updated = true;
                     }
 
-                    if (existingEntry.getNextHopIP().equals(sourceIP) && existingEntry.getNextHopPort() == sourcePort && newHopCount != existingEntry.getHopCount()) {
+                    else if (existingEntry.getNextHopIP().equals(sourceIP) && existingEntry.getNextHopPort() == sourcePort && newHopCount != existingEntry.getHopCount()) {
                         // Update direkt vom bekannten NextHop
                         routingTable.getEntries().remove(existingEntry);
                         routingTable.addEntry(new RoutingEntry(
@@ -160,7 +172,7 @@ public class RoutingManager {
                         updated = true;
 
 
-                    } else if (newHopCount < existingEntry.getHopCount()) {
+                    } else if (newHopCount < existingEntry.getHopCount() && sourceIP.equals(existingEntry.getDestinationIP()) && sourcePort == existingEntry.getDestinationPort()) {
                         // Besserer Pfad gefunden
                         routingTable.getEntries().remove(existingEntry);
                         routingTable.addEntry(new RoutingEntry(

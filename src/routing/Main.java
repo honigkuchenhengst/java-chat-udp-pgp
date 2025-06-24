@@ -11,7 +11,7 @@ public class Main {
                 return;
             }
 
-            InetAddress ownIP = InetAddress.getByName("192.168.178.24");
+            InetAddress ownIP = InetAddress.getByName("192.168.17.13");
             int ownPort = Integer.parseInt(args[0]);
 
             RoutingManager manager = new RoutingManager(ownIP, ownPort);
