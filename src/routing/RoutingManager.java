@@ -131,7 +131,9 @@ public class RoutingManager {
                     ));
                     //Neuer Eintrag ist auch Nachbar
                     if(newHopCount == 1){
-                        this.neighbors.add(new Neighbor(sourceIP, sourcePort));
+                        if(!this.neighbors.contains(new Neighbor(sourceIP, sourcePort))){
+                            this.neighbors.add(new Neighbor(sourceIP, sourcePort));
+                        }
                     }
                     updated = true;
                     System.out.println("Neuer Eintrag gelernt: " + receivedEntry.getDestinationIP() + ":" + receivedEntry.getDestinationPort());
@@ -148,7 +150,9 @@ public class RoutingManager {
                     //}
 
                     if(newHopCount == 1 && newHopCount != existingEntry.getHopCount() && sourceIP.equals(existingEntry.getDestinationIP()) && sourcePort == existingEntry.getDestinationPort()){
-                        this.neighbors.add(new Neighbor(sourceIP, sourcePort));
+                        if(!this.neighbors.contains(new Neighbor(sourceIP, sourcePort))){
+                            this.neighbors.add(new Neighbor(sourceIP, sourcePort));
+                        }
                         routingTable.getEntries().remove(existingEntry);
                         routingTable.addEntry(new RoutingEntry(
                                 existingEntry.getDestinationIP(),
@@ -224,9 +228,23 @@ public class RoutingManager {
                 neighbor.updateTimestamp();
                 int neighborId = this.routingTable.getEntries().indexOf(entry);
                 this.routingTable.getEntries().get(neighborId).setHopCount(inf);
+                //Alle durch diesen Nachbarn verbundene Knoten auf nicht erreichbar setzen
+                List<RoutingEntry> entries = this.routingTable.getEntries();
+                for(RoutingEntry e : entries) {
+                    if(e.getNextHopIP().equals(neighbor.getIp()) && e.getNextHopPort() == neighbor.getPort()){
+                        this.routingTable.getEntries().get(this.routingTable.getEntries().indexOf(e)).setHopCount(inf);
+                    }
+                }
             } else if(!neighbor.getTimerInfOrDelete() && System.currentTimeMillis() -neighbor.getLastUpdateTime() > 90_000){
                 this.routingTable.getEntries().remove(entry);
                 this.neighbors.remove(neighbor);
+                List<RoutingEntry> entries = this.routingTable.getEntries();
+                //Alle durch diesen Nachbarn verbundene Knoten loeschen
+                for(RoutingEntry e : entries) {
+                    if(e.getNextHopIP().equals(neighbor.getIp()) && e.getNextHopPort() == neighbor.getPort()){
+                        this.routingTable.getEntries().remove(e);
+                    }
+                }
             }
         }
 
