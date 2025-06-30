@@ -1,5 +1,6 @@
 package udpSocket;
 
+import packet.MessagePayload;
 import packet.Packet;
 
 import java.io.IOException;
@@ -46,9 +47,15 @@ public class UdpReceiver {
     private void handlePacket(byte[] data, String senderIP, int senderPort) {
         try {
             Packet receivedPacket = Packet.deserialize(data);
-            System.out.println("Empfangen von " + senderIP + ":" + senderPort);
-            System.out.println(receivedPacket.getPayload().toString());
-            // Hier wäre später deine Logik
+            //System.out.println("Empfangen von " + senderIP + ":" + senderPort);
+            //System.out.println(receivedPacket.getPayload().toString());
+            if (receivedPacket.getPayload() instanceof MessagePayload) {
+                MessagePayload mp = (MessagePayload) receivedPacket.getPayload();
+                System.out.println(mp.getMessageText());
+            } else {
+                System.out.println("Empfangenes Payload: " + receivedPacket.getPayload().toString());
+            }
+
 
         } catch (Exception e) {
             System.out.println("Fehler beim Deserialisieren: " + e.getMessage());

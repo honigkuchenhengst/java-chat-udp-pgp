@@ -17,7 +17,7 @@ public class UdpSender {
 
         try (DatagramSocket socket = new DatagramSocket()) {
             socket.send(udpPacket);
-            System.out.println("Paket gesendet an " + destinationIP + ":" + destinationPort);
+            //System.out.println("Paket gesendet an " + destinationIP + ":" + destinationPort);
         }
     }
 }
