@@ -1,6 +1,5 @@
 package routing;
 
-import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
@@ -41,6 +40,20 @@ public class RoutingTable {
         for (RoutingEntry entry : entries) {
             buffer.put(entry.serialize());
         }
+
+        return buffer.array();
+    }
+
+    public byte[] serializeWithHeaderOnlyThisNode(InetAddress sourceIP, int sourcePort, InetAddress destIP, int destPort){
+        int tableLength = entries.size() * 16;
+        ByteBuffer buffer = ByteBuffer.allocate(14 + tableLength);
+
+        buffer.put(sourceIP.getAddress());
+        buffer.putShort((short) sourcePort);
+        buffer.put(destIP.getAddress());
+        buffer.putShort((short) destPort);
+        buffer.putShort((short) tableLength);
+        buffer.put(entries.get(0).serialize());
 
         return buffer.array();
     }

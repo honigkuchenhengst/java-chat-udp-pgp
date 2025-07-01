@@ -3,11 +3,19 @@ import udpSocket.UdpSender;
 import udpSocket.UdpReceiver;
 
 import java.net.InetAddress;
+import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.util.Scanner;
 
-public class ChatApp {
+public class ChatApp extends Thread{
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
+        ChatApp app = new ChatApp();
+        app.start();
+
+    }
+
+    public void run(){
         Scanner scanner = new Scanner(System.in);
 
         // 1. Nutzer-Infos eingeben
@@ -25,7 +33,11 @@ public class ChatApp {
 
         // 2. Starte Receiver in eigenem Thread
         UdpReceiver receiver = new UdpReceiver(localPort, 1);
-        receiver.start();
+        try {
+            receiver.start();
+        } catch (SocketException e) {
+            e.printStackTrace();
+        }
 
         // 3. Eingabe-Schleife für Senden
         int messageId = 0;
@@ -44,13 +56,18 @@ public class ChatApp {
             int checksum = calculateChecksum(payload.serialize());
 
             // Header bauen
-            PacketHeader header = new PacketHeader(
-                    InetAddress.getLocalHost(), localPort,
-                    InetAddress.getByName(destIp), destPort,
-                    PacketType.MESSAGE,
-                    payload.serialize().length,
-                    checksum
-            );
+            PacketHeader header = null;
+            try {
+                header = new PacketHeader(
+                        InetAddress.getLocalHost(), localPort,
+                        InetAddress.getByName(destIp), destPort,
+                        PacketType.MESSAGE,
+                        payload.serialize().length,
+                        checksum
+                );
+            } catch (UnknownHostException e) {
+                e.printStackTrace();
+            }
 
             // Packet bauen & verschicken
             Packet packet = new Packet(header, payload);
@@ -58,7 +75,7 @@ public class ChatApp {
         }
     }
 
-    // Einfache Checksumme als Summe der Bytes (kannst du ersetzen)
+    // Einfache Checksumme als Summe der Bytes
     private static int calculateChecksum(byte[] data) {
         int sum = 0;
         for (byte b : data) {

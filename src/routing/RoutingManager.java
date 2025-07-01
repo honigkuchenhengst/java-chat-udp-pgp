@@ -14,6 +14,7 @@ public class RoutingManager {
     private DatagramSocket socket;
     private ScheduledExecutorService scheduler;
     private int inf;
+    private boolean logging = true;
 
     public RoutingManager(InetAddress ownIP, int ownPort) throws SocketException {
         this.ownIP = ownIP;
@@ -70,6 +71,36 @@ public class RoutingManager {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+
+        }
+    }
+
+    private void disconnect(InetAddress address,int port){
+        Neighbor neighborToForget = new Neighbor(address, port);
+        if(!this.neighbors.contains(neighborToForget)){
+            return;
+        }
+        this.neighbors.remove(neighborToForget);
+        Optional<RoutingEntry> existingOpt = routingTable.getEntries().stream()
+                .filter(e -> e.getDestinationIP().equals(address) &&
+                        e.getDestinationPort() == port)
+                .findFirst();
+        this.routingTable.getEntries().remove(existingOpt.get());
+        this.routingTable.addEntry(new RoutingEntry(address,port,address,port,inf));
+        this.sendUpdatesToNeighbors();
+    }
+
+    private void connect(InetAddress address, int port){
+        this.neighbors.add(new Neighbor(address, port));
+        try {
+            byte[] data = routingTable.serializeWithHeaderOnlyThisNode(ownIP, ownPort, address, port);
+            DatagramPacket packet = new DatagramPacket(data, data.length, address, port);
+            socket.send(packet);
+            if(logging) {
+                System.out.println("Sende RoutingTable an " + address + ":" + port);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -85,11 +116,16 @@ public class RoutingManager {
 
             //Checke ob Tabelle nicht von Nachbarn oder neuem Knoten kommt
             if (!isNeighbor && deserialized.table.getSize() > 1) {
-                System.out.println("Empfangen von Nicht-Nachbar. Ignoriere.");
+                System.out.println(deserialized.table);
+                if(logging) {
+                    System.out.println("Empfangen von Nicht-Nachbar. Ignoriere.");
+                }
                 return;
             }
+            if(logging){
 
-            System.out.println("Empfange RoutingTable von " + sourceIP + ":" + sourcePort);
+                System.out.println("Empfange RoutingTable von " + sourceIP + ":" + sourcePort);
+            }
             updateTable(deserialized.table, sourceIP, sourcePort);
 
         } catch (Exception e) {
@@ -136,8 +172,9 @@ public class RoutingManager {
                         }
                     }
                     updated = true;
-                    System.out.println("Neuer Eintrag gelernt: " + receivedEntry.getDestinationIP() + ":" + receivedEntry.getDestinationPort());
-
+                    if(logging) {
+                        System.out.println("Neuer Eintrag gelernt: " + receivedEntry.getDestinationIP() + ":" + receivedEntry.getDestinationPort());
+                    }
                 } else if (existingOpt.isPresent()) {
                     RoutingEntry existingEntry = existingOpt.get();
                     //if (sourceIP.equals(existingEntry.getDestinationIP()) && sourcePort == existingEntry.getDestinationPort()) {
@@ -207,8 +244,10 @@ public class RoutingManager {
                 byte[] data = routingTable.serializeWithHeader(ownIP, ownPort, neighbor.getIp(), neighbor.getPort());
                 DatagramPacket packet = new DatagramPacket(data, data.length, neighbor.getIp(), neighbor.getPort());
                 socket.send(packet);
-                System.out.println("Sende RoutingTable an " + neighbor.getIp() + ":" + neighbor.getPort());
-            } catch (IOException e) {
+                if(logging) {
+                    System.out.println("Sende RoutingTable an " + neighbor.getIp() + ":" + neighbor.getPort());
+                }
+                } catch (IOException e) {
                 e.printStackTrace();
             }
         }
@@ -261,15 +300,19 @@ public class RoutingManager {
                 byte[] data = routingTable.serializeWithHeader(ownIP, ownPort, neighbor.getIp(), neighbor.getPort());
                 DatagramPacket packet = new DatagramPacket(data, data.length, neighbor.getIp(), neighbor.getPort());
                 socket.send(packet);
-                System.out.println("Sende RoutingTable an " + neighbor.getIp() + ":" + neighbor.getPort());
-            } catch (IOException e) {
+                if(logging) {
+                    System.out.println("Sende RoutingTable an " + neighbor.getIp() + ":" + neighbor.getPort());
+                }
+                } catch (IOException e) {
                 e.printStackTrace();
             }
         }
     }
 
     public void printRoutingTable() {
-        System.out.println(routingTable.toString());
+        if(logging) {
+            System.out.println(routingTable.toString());
+        }
     }
 
     public void stop() {

@@ -1,9 +1,12 @@
 package routing;
+import packet.*;
 
 import java.net.*;
 
 public class Main {
     public static void main(String[] args) {
+        ChatApp app = new ChatApp();
+        //app.start();
         try {
             //TODO manpage oder -help o.Ä.
             if (args.length < 1) {
@@ -11,7 +14,7 @@ public class Main {
                 return;
             }
 
-            InetAddress ownIP = InetAddress.getByName("192.168.178.20");
+            InetAddress ownIP = InetAddress.getByName("141.22.27.102");
             int ownPort = Integer.parseInt(args[0]);
 
             RoutingManager manager = new RoutingManager(ownIP, ownPort);
