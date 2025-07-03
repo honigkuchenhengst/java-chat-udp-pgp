@@ -5,22 +5,22 @@ import java.net.*;
 
 public class Main {
     public static void main(String[] args) {
-        ChatApp app = new ChatApp();
-        //app.start();
+
         try {
-            //TODO manpage oder -help o.Ä.
-            if (args.length < 1) {
-                System.out.println("Usage: java routing.Main <ownPort> [neighborIP:neighborPort] ...");
+            if (args.length < 2) {
+                System.out.println("Usage: java routing.Main <routingPort> <chatPort> [neighborIP:neighborRoutingPort] ...");
                 return;
             }
 
-            InetAddress ownIP = InetAddress.getByName("141.22.27.102");
-            int ownPort = Integer.parseInt(args[0]);
+            InetAddress ownIP = InetAddress.getByName("127.0.0.1");
+            int routingPort = Integer.parseInt(args[0]);
+            int chatPort = Integer.parseInt(args[1]);
 
-            RoutingManager manager = new RoutingManager(ownIP, ownPort);
+            RoutingManager manager = new RoutingManager(ownIP, routingPort);
+            ChatApp app = new ChatApp(manager, chatPort);
 
             // Nachbarn hinzufügen, falls vorhanden
-            for (int i = 1; i < args.length; i++) {
+            for (int i = 2; i < args.length; i++) {
                 String[] parts = args[i].split(":");
                 if (parts.length != 2) {
                     System.out.println("Ungültiger Nachbar: " + args[i]);
@@ -32,9 +32,10 @@ public class Main {
             }
 
             manager.start();
+            app.start();
 
-            System.out.println("Routing Node läuft auf " + ownIP.getHostAddress() + ":" + ownPort);
-            System.out.println("STRG+C zum Beenden.");
+            System.out.println("Node läuft mit RoutingPort " + routingPort + " und ChatPort " + chatPort);
+            System.err.println("STRG+C zum Beenden.");
 
             // Einfach dauerhaft laufen lassen
             while (true) {

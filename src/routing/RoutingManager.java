@@ -1,5 +1,8 @@
 package routing;
 
+import packet.ChatApp;
+import packet.Packet;
+
 import java.io.IOException;
 import java.net.*;
 import java.util.*;
@@ -14,7 +17,7 @@ public class RoutingManager {
     private DatagramSocket socket;
     private ScheduledExecutorService scheduler;
     private int inf;
-    private boolean logging = true;
+    private boolean logging = false;
 
     public RoutingManager(InetAddress ownIP, int ownPort) throws SocketException {
         this.ownIP = ownIP;
@@ -97,7 +100,7 @@ public class RoutingManager {
             DatagramPacket packet = new DatagramPacket(data, data.length, address, port);
             socket.send(packet);
             if(logging) {
-                System.out.println("Sende RoutingTable an " + address + ":" + port);
+                System.err.println("Sende RoutingTable an " + address + ":" + port);
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -116,15 +119,15 @@ public class RoutingManager {
 
             //Checke ob Tabelle nicht von Nachbarn oder neuem Knoten kommt
             if (!isNeighbor && deserialized.table.getSize() > 1) {
-                System.out.println(deserialized.table);
+                System.err.println(deserialized.table);
                 if(logging) {
-                    System.out.println("Empfangen von Nicht-Nachbar. Ignoriere.");
+                    System.err.println("Empfangen von Nicht-Nachbar. Ignoriere.");
                 }
                 return;
             }
             if(logging){
 
-                System.out.println("Empfange RoutingTable von " + sourceIP + ":" + sourcePort);
+                System.err.println("Empfange RoutingTable von " + sourceIP + ":" + sourcePort);
             }
             updateTable(deserialized.table, sourceIP, sourcePort);
 
@@ -173,7 +176,7 @@ public class RoutingManager {
                     }
                     updated = true;
                     if(logging) {
-                        System.out.println("Neuer Eintrag gelernt: " + receivedEntry.getDestinationIP() + ":" + receivedEntry.getDestinationPort());
+                        System.err.println("Neuer Eintrag gelernt: " + receivedEntry.getDestinationIP() + ":" + receivedEntry.getDestinationPort());
                     }
                 } else if (existingOpt.isPresent()) {
                     RoutingEntry existingEntry = existingOpt.get();
@@ -245,7 +248,7 @@ public class RoutingManager {
                 DatagramPacket packet = new DatagramPacket(data, data.length, neighbor.getIp(), neighbor.getPort());
                 socket.send(packet);
                 if(logging) {
-                    System.out.println("Sende RoutingTable an " + neighbor.getIp() + ":" + neighbor.getPort());
+                    System.err.println("Sende RoutingTable an " + neighbor.getIp() + ":" + neighbor.getPort());
                 }
                 } catch (IOException e) {
                 e.printStackTrace();
@@ -301,7 +304,7 @@ public class RoutingManager {
                 DatagramPacket packet = new DatagramPacket(data, data.length, neighbor.getIp(), neighbor.getPort());
                 socket.send(packet);
                 if(logging) {
-                    System.out.println("Sende RoutingTable an " + neighbor.getIp() + ":" + neighbor.getPort());
+                    System.err.println("Sende RoutingTable an " + neighbor.getIp() + ":" + neighbor.getPort());
                 }
                 } catch (IOException e) {
                 e.printStackTrace();
@@ -311,11 +314,45 @@ public class RoutingManager {
 
     public void printRoutingTable() {
         if(logging) {
-            System.out.println(routingTable.toString());
+            System.err.println(routingTable.toString());
         }
     }
 
     public void stop() {
         scheduler.close();
+    }
+
+    public void sendMessageTo(DatagramSocket chatSocket, InetAddress destIP, int destPort, Packet packet) {
+        Optional<RoutingEntry> routeOpt = routingTable.getEntries().stream()
+                .filter(e -> e.getDestinationIP().equals(destIP) && e.getDestinationPort() == destPort)
+                .findFirst();
+
+        if (routeOpt.isEmpty()) {
+            System.err.println("Ziel " + destIP + ":" + destPort + " nicht in Routing-Tabelle.");
+            return;
+        }
+
+        RoutingEntry route = routeOpt.get();
+
+        if (route.getHopCount() >= inf) {
+            System.err.println("Ziel " + destIP + ":" + destPort + " ist als 'unreachable' markiert.");
+            return;
+        }
+
+        InetAddress nextHopIP = route.getNextHopIP();
+        int nextHopPort = route.getNextHopPort();
+
+        try {
+            byte[] data = packet.serialize();  // Nimm die Methode aus deiner Packet-Klasse
+            DatagramPacket udpPacket = new DatagramPacket(data, data.length, nextHopIP, nextHopPort);
+            chatSocket.send(udpPacket);
+            if (logging) {
+                System.err.println("Sende Nachricht an " + destIP + ":" + destPort +
+                        " über " + nextHopIP + ":" + nextHopPort);
+            }
+        } catch (IOException e) {
+            System.err.println("Fehler beim Senden der Nachricht: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 }

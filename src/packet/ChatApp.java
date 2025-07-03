@@ -1,19 +1,31 @@
 package packet;
+import routing.RoutingManager;
 import udpSocket.UdpSender;
 import udpSocket.UdpReceiver;
 
+import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Scanner;
 
 public class ChatApp extends Thread{
+    private RoutingManager routingManager;
+    private DatagramSocket chatSocket;
+    private int chatPort;
 
-    public static void main(String[] args) {
-        ChatApp app = new ChatApp();
-        app.start();
-
+    public ChatApp(RoutingManager routingManager, int chatPort) throws SocketException {
+        this.routingManager = routingManager;
+        this.chatSocket = new DatagramSocket(chatPort);
+        this.chatPort = chatPort;
     }
+
+
+//    public static void main(String[] args) {
+//        ChatApp app = new ChatApp();
+//        app.start();
+//
+//    }
 
     public void run(){
         Scanner scanner = new Scanner(System.in);
@@ -22,8 +34,8 @@ public class ChatApp extends Thread{
         System.out.print("Dein Name: ");
         String username = scanner.nextLine();
 
-        System.out.print("Deine Portnummer (zum Empfangen): ");
-        int localPort = Integer.parseInt(scanner.nextLine());
+//        System.out.print("Deine Portnummer (zum Empfangen): ");
+//        int localPort = Integer.parseInt(scanner.nextLine());
 
         System.out.print("Ziel-IP: ");
         String destIp = scanner.nextLine();
@@ -32,7 +44,7 @@ public class ChatApp extends Thread{
         int destPort = Integer.parseInt(scanner.nextLine());
 
         // 2. Starte Receiver in eigenem Thread
-        UdpReceiver receiver = new UdpReceiver(localPort, 1);
+        UdpReceiver receiver = new UdpReceiver(chatPort, 1);
         try {
             receiver.start();
         } catch (SocketException e) {
@@ -59,7 +71,7 @@ public class ChatApp extends Thread{
             PacketHeader header = null;
             try {
                 header = new PacketHeader(
-                        InetAddress.getLocalHost(), localPort,
+                        InetAddress.getLocalHost(), chatPort,
                         InetAddress.getByName(destIp), destPort,
                         PacketType.MESSAGE,
                         payload.serialize().length,
@@ -71,10 +83,13 @@ public class ChatApp extends Thread{
 
             // Packet bauen & verschicken
             Packet packet = new Packet(header, payload);
-            UdpSender.sendPacket(packet, destIp, destPort);
+            try {
+                routingManager.sendMessageTo(chatSocket, InetAddress.getByName(destIp), destPort, packet);
+            } catch (UnknownHostException e) {
+                e.printStackTrace();
+            }
         }
     }
-
     // Einfache Checksumme als Summe der Bytes
     private static int calculateChecksum(byte[] data) {
         int sum = 0;
