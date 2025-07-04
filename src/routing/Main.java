@@ -1,4 +1,5 @@
 package routing;
+
 import packet.*;
 
 import java.net.*;
@@ -12,10 +13,13 @@ public class Main {
                 return;
             }
 
+            // Lokale IP setzen – optional anpassen bei echtem Netzwerk
             InetAddress ownIP = InetAddress.getByName("127.0.0.1");
+
             int routingPort = Integer.parseInt(args[0]);
             int chatPort = Integer.parseInt(args[1]);
 
+            // RoutingManager und ChatApp initialisieren
             RoutingManager manager = new RoutingManager(ownIP, routingPort);
             ChatApp app = new ChatApp(manager, chatPort);
 
@@ -31,13 +35,18 @@ public class Main {
                 manager.addNeighbor(neighborIP, neighborPort);
             }
 
+            // Routing starten (Broadcasts etc.)
             manager.start();
+
+            // ChatApp starten (z. B. Konsoleingabe)
             app.start();
 
-            System.out.println("Node läuft mit RoutingPort " + routingPort + " und ChatPort " + chatPort);
-            System.err.println("STRG+C zum Beenden.");
+            System.out.println("Node läuft:");
+            System.out.println("  RoutingPort: " + routingPort);
+            System.out.println("  ChatPort:    " + chatPort);
+            System.out.println("STRG+C zum Beenden.");
 
-            // Einfach dauerhaft laufen lassen
+            // Keep alive
             while (true) {
                 Thread.sleep(10000);
             }

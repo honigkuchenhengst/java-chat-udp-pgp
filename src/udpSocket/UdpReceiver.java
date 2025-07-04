@@ -12,27 +12,24 @@ import java.util.concurrent.Executors;
 
 public class UdpReceiver {
 
-    private final int port;
+    private final DatagramSocket socket;
     private final ExecutorService executorService;
 
-    public UdpReceiver(int port, int threadPoolSize) {
-        this.port = port;
+    public UdpReceiver(DatagramSocket socket, int threadPoolSize) {
+        this.socket = socket;
         this.executorService = Executors.newFixedThreadPool(threadPoolSize);
     }
 
-    public void start() throws SocketException {
-        DatagramSocket socket = new DatagramSocket(port);
-        System.out.println("UDP Receiver gestartet auf Port " + port);
+    public void start() {
+        System.out.println("UDP Receiver gestartet auf Port " + socket.getLocalPort());
 
-        // Extra Thread fürs Empfangen
         new Thread(() -> {
-            byte[] buffer = new byte[1024]; // Je nach erwarteter max Paketgröße
+            byte[] buffer = new byte[1024];
             while (true) {
                 try {
                     DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                     socket.receive(packet);
 
-                    // Kopiere die empfangenen Daten (Achtung: DatagramPacket nutzt denselben Puffer immer wieder!)
                     byte[] data = new byte[packet.getLength()];
                     System.arraycopy(packet.getData(), packet.getOffset(), data, 0, packet.getLength());
 

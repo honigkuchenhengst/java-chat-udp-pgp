@@ -26,8 +26,8 @@ public class Main {
 
         if (mode.equalsIgnoreCase("receiver")) {
             int port = args.length >= 2 ? Integer.parseInt(args[1]) : 5000;
-            UdpReceiver receiver = new UdpReceiver(port, 2);
-            receiver.start();
+            //UdpReceiver receiver = new UdpReceiver(port, 2);
+            //receiver.start();
         } else if (mode.equalsIgnoreCase("sender")) {
             Scanner scanner = new Scanner(System.in);
             System.out.print("Ziel-IP: ");

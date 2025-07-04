@@ -20,13 +20,6 @@ public class ChatApp extends Thread{
         this.chatPort = chatPort;
     }
 
-
-//    public static void main(String[] args) {
-//        ChatApp app = new ChatApp();
-//        app.start();
-//
-//    }
-
     public void run(){
         Scanner scanner = new Scanner(System.in);
 
@@ -44,12 +37,8 @@ public class ChatApp extends Thread{
         int destPort = Integer.parseInt(scanner.nextLine());
 
         // 2. Starte Receiver in eigenem Thread
-        UdpReceiver receiver = new UdpReceiver(chatPort, 1);
-        try {
-            receiver.start();
-        } catch (SocketException e) {
-            e.printStackTrace();
-        }
+        UdpReceiver receiver = new UdpReceiver(chatSocket, 4);
+        receiver.start();
 
         // 3. Eingabe-Schleife für Senden
         int messageId = 0;
