@@ -340,7 +340,7 @@ public class RoutingManager {
         }
 
         InetAddress nextHopIP = route.getNextHopIP();
-        int nextHopPort = route.getNextHopPort();
+        int nextHopPort = route.getNextHopPort() + 1000; //HEUREKAA!
 
         try {
             byte[] data = packet.serialize();  // Nimm die Methode aus deiner Packet-Klasse

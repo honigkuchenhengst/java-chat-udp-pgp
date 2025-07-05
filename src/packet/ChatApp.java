@@ -33,7 +33,7 @@ public class ChatApp extends Thread{
         System.out.print("Ziel-IP: ");
         String destIp = scanner.nextLine();
 
-        System.out.print("Ziel-Port: ");
+        System.out.print("Ziel-Port (Routing): ");
         int destPort = Integer.parseInt(scanner.nextLine());
 
         // 2. Starte Receiver in eigenem Thread
