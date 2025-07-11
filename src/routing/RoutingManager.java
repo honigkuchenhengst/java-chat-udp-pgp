@@ -356,7 +356,7 @@ public class RoutingManager {
         try {
             byte[] serializedData = packet.serialize();
             InetAddress destIp = packet.getHeader().getDestIp();
-            int destPort = packet.getHeader().getDestPort();
+            int destPort = packet.getHeader().getDestPort() + 1;
 
             DatagramPacket datagramPacket = new DatagramPacket(serializedData, serializedData.length, destIp, destPort);
             socket.send(datagramPacket);
