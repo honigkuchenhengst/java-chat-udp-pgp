@@ -17,7 +17,7 @@ public class Main {
             InetAddress ownIP = InetAddress.getByName("127.0.0.1");
 
             int routingPort = Integer.parseInt(args[0]);
-            int chatPort = routingPort + 1000;
+            int chatPort = routingPort + 1;
 
             // RoutingManager und ChatApp initialisieren
             RoutingManager manager = new RoutingManager(ownIP, routingPort);

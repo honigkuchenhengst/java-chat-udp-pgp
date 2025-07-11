@@ -340,7 +340,7 @@ public class RoutingManager {
         }
 
         InetAddress nextHopIP = route.getNextHopIP();
-        int nextHopPort = route.getNextHopPort() + 1000; //HEUREKAA!
+        int nextHopPort = route.getNextHopPort() + 1; //HEUREKAA!
 
         try {
             byte[] data = packet.serialize();  // Nimm die Methode aus deiner Packet-Klasse
@@ -355,4 +355,21 @@ public class RoutingManager {
             e.printStackTrace();
         }
     }
+    public void forwardPacket(DatagramSocket socket, Packet packet) {
+        try {
+            byte[] serializedData = packet.serialize();
+            InetAddress destIp = packet.getHeader().getDestIp();
+            int destPort = packet.getHeader().getDestPort();
+
+            DatagramPacket datagramPacket = new DatagramPacket(serializedData, serializedData.length, destIp, destPort+1);
+            socket.send(datagramPacket);
+
+            System.out.println("Weitergeleitet an " + destIp.getHostAddress() + ":" + destPort +
+                    " (" + serializedData.length + " Bytes)");
+        } catch (Exception e) {
+            System.err.println("Fehler beim Weiterleiten des Pakets: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
 }

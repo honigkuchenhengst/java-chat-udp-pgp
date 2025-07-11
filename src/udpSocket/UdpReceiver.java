@@ -2,11 +2,13 @@ package udpSocket;
 
 import packet.MessagePayload;
 import packet.Packet;
+import packet.PacketHeader;
+import routing.RoutingManager;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.SocketException;
+import java.net.InetAddress;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -14,10 +16,12 @@ public class UdpReceiver {
 
     private final DatagramSocket socket;
     private final ExecutorService executorService;
+    private final RoutingManager routingManager;
 
-    public UdpReceiver(DatagramSocket socket, int threadPoolSize) {
+    public UdpReceiver(DatagramSocket socket, int threadPoolSize, RoutingManager routingManager) {
         this.socket = socket;
         this.executorService = Executors.newFixedThreadPool(threadPoolSize);
+        this.routingManager = routingManager;
     }
 
     public void start() {
@@ -44,18 +48,32 @@ public class UdpReceiver {
     private void handlePacket(byte[] data, String senderIP, int senderPort) {
         try {
             Packet receivedPacket = Packet.deserialize(data);
-            //System.out.println("Empfangen von " + senderIP + ":" + senderPort);
-            //System.out.println(receivedPacket.getPayload().toString());
-            if (receivedPacket.getPayload() instanceof MessagePayload) {
-                MessagePayload mp = (MessagePayload) receivedPacket.getPayload();
-                System.out.println(mp.getMessageText());
+            PacketHeader header = receivedPacket.getHeader();
+
+            InetAddress localAddress = socket.getLocalAddress();
+            int localPort = socket.getLocalPort() - 1;
+
+            boolean isForMe =
+                    header.getDestIp().equals(localAddress) &&
+                            header.getDestPort() == localPort;
+
+            if (isForMe) {
+                // Handle Packet
+                if (receivedPacket.getPayload() instanceof MessagePayload) {
+                    MessagePayload mp = (MessagePayload) receivedPacket.getPayload();
+                    System.out.println("Nachricht empfangen: " + mp.getMessageText());
+                } else {
+                    System.out.println("Empfangenes Payload: " + receivedPacket.getPayload().toString());
+                }
             } else {
-                System.out.println("Empfangenes Payload: " + receivedPacket.getPayload().toString());
+                // Weiterleiten
+                System.out.println("Paket nicht für mich – Weiterleitung an " +
+                        header.getDestIp().getHostAddress() + ":" + header.getDestPort());
+                routingManager.forwardPacket(socket, receivedPacket);
             }
 
-
         } catch (Exception e) {
-            System.out.println("Fehler beim Deserialisieren: " + e.getMessage());
+            System.out.println("Fehler beim Deserialisieren oder Weiterleiten: " + e.getMessage());
             e.printStackTrace();
         }
     }

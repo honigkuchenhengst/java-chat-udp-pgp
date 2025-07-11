@@ -7,8 +7,8 @@ import java.net.InetAddress;
 public class UdpTestMain {
     public static void main(String[] args) throws Exception {
         // Starte den Receiver
-        UdpReceiver receiver = new UdpReceiver(12345, 4);
-        receiver.start();
+        //UdpReceiver receiver = new UdpReceiver(12345, 4);
+        //receiver.start();
 
         // Warte kurz, damit Receiver ready ist
         Thread.sleep(1000);

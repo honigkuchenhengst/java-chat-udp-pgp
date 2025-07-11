@@ -86,4 +86,7 @@ public class Packet {
     public Payload getPayload() {
         return payload;
     }
+    public PacketHeader getHeader() {
+        return header;
+    }
 }
