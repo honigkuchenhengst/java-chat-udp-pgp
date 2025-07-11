@@ -1,90 +1,156 @@
 package packet;
-import routing.RoutingManager;
-import udpSocket.UdpSender;
-import udpSocket.UdpReceiver;
 
+import routing.RoutingManager;
+import udpSocket.UdpReceiver;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Scanner;
+import java.util.zip.CRC32;
 
-public class ChatApp extends Thread{
-    private RoutingManager routingManager;
-    private DatagramSocket chatSocket;
-    private int chatPort;
+public class ChatApp extends Thread {
+    private final RoutingManager routingManager;
+    private final DatagramSocket chatSocket;
+    private final int chatPort;
+    private String activeChatPartnerAddress; // Speichert die IP:Port des Chatpartners als String
+    private int messageIdCounter = 0;
+    private String ownAddress; // Die eigene Adresse für die Anzeige in Nachrichten
 
-    public ChatApp(RoutingManager routingManager, int chatPort) throws SocketException {
+    public ChatApp(RoutingManager routingManager, int chatPort) throws SocketException, UnknownHostException {
         this.routingManager = routingManager;
         this.chatSocket = new DatagramSocket(chatPort);
         this.chatPort = chatPort;
+        this.activeChatPartnerAddress = null;
+        // Speichere die eigene Adresse für die Nachrichten-Signatur
+        this.ownAddress = InetAddress.getLocalHost().getHostAddress() + ":" + this.chatPort;
     }
 
-    public void run(){
-        Scanner scanner = new Scanner(System.in);
-
-        // 1. Nutzer-Infos eingeben
-        System.out.print("Dein Name: ");
-        String username = scanner.nextLine();
-
-//        System.out.print("Deine Portnummer (zum Empfangen): ");
-//        int localPort = Integer.parseInt(scanner.nextLine());
-
-        System.out.print("Ziel-IP: ");
-        String destIp = scanner.nextLine();
-
-        System.out.print("Ziel-Port (Routing): ");
-        int destPort = Integer.parseInt(scanner.nextLine());
-
-        // 2. Starte Receiver in eigenem Thread
+    @Override
+    public void run() {
+        // Starte Receiver...
         UdpReceiver receiver = new UdpReceiver(chatSocket, 4, routingManager);
         receiver.start();
 
-        // 3. Eingabe-Schleife für Senden
-        int messageId = 0;
+        System.out.println("Chat-Anwendung gestartet auf " + ownAddress);
+        printHelp();
 
+        Scanner scanner = new Scanner(System.in);
         while (true) {
-            String messageText = scanner.nextLine();
+            String prompt = activeChatPartnerAddress != null ? "[" + activeChatPartnerAddress + "] > " : "> ";
+            System.out.print(prompt);
 
-            if (messageText.trim().isEmpty()) continue;
+            String input = scanner.nextLine();
+            if (input.trim().isEmpty()) continue;
 
-            // Payload bauen
+            if (input.startsWith("/")) {
+                handleCommand(input);
+            } else {
+                handleMessageInput(input);
+            }
+        }
+    }
+
+    private void handleCommand(String commandInput) {
+        String[] parts = commandInput.trim().split("\\s+", 3);
+        String command = parts[0].toLowerCase();
+
+        switch (command) {
+            case "/chat":
+                if (parts.length < 2) {
+                    System.out.println("FEHLER: Bitte eine Adresse angeben. Verwendung: /chat <IP:Port>");
+                } else {
+                    activeChatPartnerAddress = parts[1];
+                    System.out.println("Du sprichst jetzt mit '" + activeChatPartnerAddress + "'.");
+                }
+                break;
+            case "/msg":
+                if (parts.length < 3) {
+                    System.out.println("FEHLER: Verwendung: /msg <IP:Port> <Nachricht>");
+                } else {
+                    sendMessage(parts[1], parts[2]);
+                }
+                break;
+            case "/list":
+                routingManager.printKnownNodes(); // Ruft die neue, einfache Methode auf
+                break;
+            case "/quit":
+                System.out.println("Anwendung wird beendet...");
+                chatSocket.close();
+                System.exit(0);
+                break;
+            case "/help":
+                printHelp();
+                break;
+            default:
+                System.out.println("Unbekannter Befehl. Nutze /help für eine Übersicht.");
+                break;
+        }
+    }
+
+    private void handleMessageInput(String messageText) {
+        if (activeChatPartnerAddress != null) {
+            sendMessage(activeChatPartnerAddress, messageText);
+        } else {
+            System.out.println("Kein aktiver Chatpartner. Nutze '/chat <IP:Port>' oder '/msg <IP:Port> <Nachricht>'.");
+        }
+    }
+
+    /**
+     * Sendet eine Nachricht an eine Ziel-Adresse (IP:Port).
+     */
+    private void sendMessage(String destinationAddress, String messageText) {
+        try {
+            // Parse die Ziel-Adresse
+            String[] addrParts = destinationAddress.split(":");
+            if (addrParts.length != 2) {
+                System.out.println("FEHLER: Ungültiges Adressformat. Erwartet: IP:Port");
+                return;
+            }
+            InetAddress destIp = InetAddress.getByName(addrParts[0]);
+            int destPort = Integer.parseInt(addrParts[1]);
+
+            // Payload bauen (ohne Namen)
             MessagePayload payload = new MessagePayload(
-                    messageId++, 1, 1, "[" + username + "]: " + messageText
+                    messageIdCounter++, 1, 1, "[" + this.ownAddress + "]: " + messageText
             );
 
             // Checksumme berechnen
             int checksum = calculateChecksum(payload.serialize());
 
             // Header bauen
-            PacketHeader header = null;
-            try {
-                header = new PacketHeader(
-                        InetAddress.getLocalHost(), chatPort,
-                        InetAddress.getByName(destIp), destPort,
-                        PacketType.MESSAGE,
-                        payload.serialize().length,
-                        checksum
-                );
-            } catch (UnknownHostException e) {
-                e.printStackTrace();
-            }
+            PacketHeader header = new PacketHeader(
+                    InetAddress.getLocalHost(), this.chatPort,
+                    destIp, destPort,
+                    PacketType.MESSAGE,
+                    payload.serialize().length,
+                    checksum
+            );
 
-            // Packet bauen & verschicken
+            // Packet bauen & über den RoutingManager verschicken
             Packet packet = new Packet(header, payload);
-            try {
-                routingManager.sendMessageTo(chatSocket, InetAddress.getByName(destIp), destPort, packet);
-            } catch (UnknownHostException e) {
-                e.printStackTrace();
-            }
+            routingManager.sendMessageTo(chatSocket, destIp, destPort, packet);
+
+        } catch (UnknownHostException e) {
+            System.out.println("FEHLER: Host '" + destinationAddress + "' ist unbekannt.");
+        } catch (NumberFormatException e) {
+            System.out.println("FEHLER: Ungültiger Port in Adresse '" + destinationAddress + "'.");
         }
     }
-    // Einfache Checksumme als Summe der Bytes
+
+    private void printHelp() {
+        System.out.println("--- Verfügbare Befehle ---");
+        System.out.println("/chat <IP:Port>    - Startet einen interaktiven Chat.");
+        System.out.println("/msg <IP:Port> <text> - Sendet eine einzelne Nachricht.");
+        System.out.println("/list              - Zeigt alle erreichbaren Teilnehmer an.");
+        System.out.println("/help              - Zeigt diese Hilfe an.");
+        System.out.println("/quit              - Beendet die Anwendung.");
+        System.out.println("--------------------------");
+    }
+
     private static int calculateChecksum(byte[] data) {
-        int sum = 0;
-        for (byte b : data) {
-            sum += (b & 0xFF);
-        }
-        return sum & 0xFFFF; // passt in 2 Byte
+        CRC32 crc32 = new CRC32();
+        crc32.update(data);
+        return (int) crc32.getValue();
     }
 }

@@ -358,7 +358,7 @@ public class RoutingManager {
             InetAddress destIp = packet.getHeader().getDestIp();
             int destPort = packet.getHeader().getDestPort() + 1;
 
-            DatagramPacket datagramPacket = new DatagramPacket(serializedData, serializedData.length, destIp, destPort);
+            DatagramPacket datagramPacket = new DatagramPacket(serializedData, serializedData.length, destIp, destPort+1);
             socket.send(datagramPacket);
 
             System.out.println("Weitergeleitet an " + destIp.getHostAddress() + ":" + destPort +
@@ -367,5 +367,24 @@ public class RoutingManager {
             System.err.println("Fehler beim Weiterleiten des Pakets: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+    public void printKnownNodes() {
+        if (routingTable.getEntries().isEmpty()) {
+            System.out.println("Routing-Tabelle ist leer.");
+            return;
+        }
+        System.out.println("--- Erreichbare Teilnehmer (Routing-Tabelle) ---");
+        System.out.println("Ziel\t\t\tVia (Next Hop)\t\tHops");
+        System.out.println("------------------------------------------------------------------");
+
+        // Annahme: routingTable.getEntries() gibt eine Collection von RoutingEntry zurück
+        for (RoutingEntry entry : routingTable.getEntries()) {
+            String targetAddress = entry.getDestinationIP().getHostAddress() + ":" + entry.getDestinationPort();
+            String nextHop = entry.getNextHopIP().getHostAddress() + ":" + entry.getNextHopPort();
+            String hops = (entry.getHopCount() >= 16) ? "unreachable" : String.valueOf(entry.getHopCount());
+
+            System.out.printf("%-20s\t%-20s\t%s%n", targetAddress, nextHop, hops);
+        }
+        System.out.println("------------------------------------------------------------------");
     }
 }
