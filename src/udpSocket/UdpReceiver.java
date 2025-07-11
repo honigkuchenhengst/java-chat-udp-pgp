@@ -51,11 +51,13 @@ public class UdpReceiver {
             PacketHeader header = receivedPacket.getHeader();
 
             InetAddress localAddress = socket.getLocalAddress();
-            int localPort = socket.getLocalPort() - 1;
+            int localPort = socket.getLocalPort() + 1;
 
             boolean isForMe =
                     header.getDestIp().equals(localAddress) &&
                             header.getDestPort() == localPort;
+            System.out.println(header.getDestIp());
+            System.out.println(header.getDestPort());
 
             if (isForMe) {
                 // Handle Packet

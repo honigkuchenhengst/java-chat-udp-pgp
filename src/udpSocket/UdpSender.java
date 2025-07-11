@@ -1,7 +1,5 @@
 package udpSocket;
-
 import packet.Packet;
-
 import java.io.IOException;
 import java.net.*;
 
