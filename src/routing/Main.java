@@ -41,10 +41,10 @@ public class Main {
             // ChatApp starten (z.B. Konsoleingabe)
             app.start();
 
-            System.out.println("Node läuft:");
-            System.out.println("  RoutingPort: " + routingPort);
-            System.out.println("  ChatPort:    " + chatPort);
-            System.out.println("STRG+C zum Beenden.");
+//            System.out.println("Node läuft:");
+//            System.out.println("  RoutingPort: " + routingPort);
+//            System.out.println("  ChatPort:    " + chatPort);
+//            System.out.println("STRG+C zum Beenden.");
 
             // Keep alive
             while (true) {
