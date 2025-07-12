@@ -4,6 +4,8 @@ import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
+import packet.FilePayload;
+
 public class Packet {
     private PacketHeader header;
     private Payload payload;
@@ -32,6 +34,8 @@ public class Packet {
 
         switch (header.getType()) {
             case FILE:
+                payload = FilePayload.deserialize(payloadBytes);
+                break;
             case MESSAGE:
                 payload = MessagePayload.deserialize(payloadBytes);
                 break;
