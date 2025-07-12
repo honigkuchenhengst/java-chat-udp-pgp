@@ -1,5 +1,6 @@
 package udpSocket;
 
+
 import packet.ChatApp;
 import packet.MessagePayload;
 
@@ -78,7 +79,6 @@ public class UdpReceiver {
                             header.getDestPort() + 1 == localPort;
 
             if (isForMe) {
-
                 chatApp.onPacketReceived(receivedPacket);
 
             } else {

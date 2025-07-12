@@ -24,6 +24,9 @@ public class ChatApp extends Thread {
     private InetAddress partnerIp;
     private int partnerPort;
 
+    private String pendingMessage = null;
+    private boolean closeAfterSend = false;
+
     public ChatApp(RoutingManager routingManager, int chatPort) throws SocketException, UnknownHostException {
         this.routingManager = routingManager;
         this.chatSocket = new DatagramSocket(chatPort);
@@ -77,10 +80,19 @@ public class ChatApp extends Thread {
                     System.out.println("FEHLER: Verwendung: /msg <IP:Port> <Nachricht>");
                 } else {
                     if (connectionState != ConnectionState.CONNECTED || !parts[1].equals(activeChatPartnerAddress)) {
+
+                        pendingMessage = parts[2];
+                        closeAfterSend = true;
                         initiateHandshake(parts[1]);
-                        System.out.println("Handshake wird durchgefuehrt. Bitte erneut senden.");
                     } else {
                         sendMessage(parts[1], parts[2]);
+                        try {
+                            sendControlPacket(FIN, partnerIp, partnerPort);
+                            connectionState = ConnectionState.FIN_WAIT;
+                        } catch (Exception e) {
+                            // ignore
+                        }
+
                     }
                 }
                 break;
@@ -284,6 +296,22 @@ public class ChatApp extends Thread {
         routingManager.sendMessageTo(chatSocket, ip, port, p);
     }
 
+    private void sendPendingIfReady() {
+        if (pendingMessage != null) {
+            sendMessage(activeChatPartnerAddress, pendingMessage);
+            pendingMessage = null;
+            if (closeAfterSend) {
+                try {
+                    sendControlPacket(FIN, partnerIp, partnerPort);
+                    connectionState = ConnectionState.FIN_WAIT;
+                } catch (Exception e) {
+                    // ignore
+                }
+                closeAfterSend = false;
+            }
+        }
+    }
+
     public synchronized void onPacketReceived(Packet packet) {
         PacketHeader header = packet.getHeader();
         String source = header.getSourceIp().getHostAddress() + ":" + header.getSourcePort();
@@ -307,6 +335,8 @@ public class ChatApp extends Thread {
                     try {
                         sendControlPacket(ACK, partnerIp, partnerPort);
                         connectionState = ConnectionState.CONNECTED;
+                        sendPendingIfReady();
+
                     } catch (IOException e) {
                         // ignore
                     }
@@ -316,6 +346,9 @@ public class ChatApp extends Thread {
             case ACK:
                 if (connectionState == ConnectionState.SYN_RECEIVED) {
                     connectionState = ConnectionState.CONNECTED;
+
+                    sendPendingIfReady();
+
                     System.out.println("Verbindung hergestellt mit " + activeChatPartnerAddress);
                 }
                 break;
