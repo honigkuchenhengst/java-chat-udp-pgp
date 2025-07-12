@@ -52,7 +52,7 @@ public class ChatApp extends Thread {
     @Override
     public void run() {
         // Starte Receiver...
-        UdpReceiver receiver = new UdpReceiver(chatSocket, 4, routingManager, this);
+        UdpReceiver receiver = new UdpReceiver(chatSocket, 20, routingManager, this);
         receiver.start();
 
         System.out.println("Chat-Anwendung gestartet auf " + ownAddress);
@@ -423,13 +423,13 @@ public class ChatApp extends Thread {
         int checksum = calculateChecksum(payload.serialize());
         PacketHeader header = new PacketHeader(
                 InetAddress.getLocalHost(), this.chatPort,
-                ip, port,
+                ip, port - 1,
                 PacketType.DATA_ACK,
                 payload.serialize().length,
                 checksum
         );
         Packet p = new Packet(header, payload);
-        routingManager.sendMessageTo(chatSocket, ip, port, p);
+        routingManager.sendMessageTo(chatSocket, ip, port - 1, p);
     }
 
     private void sendPendingIfReady() {
@@ -453,7 +453,7 @@ public class ChatApp extends Thread {
         }
     }
 
-    public synchronized void onPacketReceived(Packet packet) {
+    public void onPacketReceived(Packet packet) {
         PacketHeader header = packet.getHeader();
         String source = header.getSourceIp().getHostAddress() + ":" + header.getSourcePort();
         switch (header.getType()) {
@@ -550,6 +550,7 @@ public class ChatApp extends Thread {
                 }
                 break;
             case DATA_ACK:
+                System.out.println("ACK ACK ACK");
                 if (packet.getPayload() instanceof AckPayload) {
                     AckPayload ap = (AckPayload) packet.getPayload();
                     synchronized (fileAckMap) {

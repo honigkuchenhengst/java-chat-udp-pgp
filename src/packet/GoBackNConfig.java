@@ -1,5 +1,5 @@
 package packet;
 
 public class GoBackNConfig {
-    public static final int WINDOW_SIZE = 5;
+    public static final int WINDOW_SIZE = 10000;
 }
