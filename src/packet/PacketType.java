@@ -7,7 +7,8 @@ public enum PacketType {
     ACK((byte) 3),
     FIN((byte) 4),
     SYN_ACK((byte) 5),
-    FIN_ACK((byte) 6);
+    FIN_ACK((byte) 6),
+    DATA_ACK((byte) 7);
 
     private final byte code;
 
