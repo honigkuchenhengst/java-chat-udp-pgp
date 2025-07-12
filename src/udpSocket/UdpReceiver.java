@@ -1,5 +1,6 @@
 package udpSocket;
 
+import packet.ChatApp;
 import packet.MessagePayload;
 import packet.Packet;
 import packet.PacketHeader;
@@ -18,11 +19,13 @@ public class UdpReceiver {
     private final DatagramSocket socket;
     private final ExecutorService executorService;
     private final RoutingManager routingManager;
+    private final ChatApp chatApp;
 
-    public UdpReceiver(DatagramSocket socket, int threadPoolSize, RoutingManager routingManager) {
+    public UdpReceiver(DatagramSocket socket, int threadPoolSize, RoutingManager routingManager, ChatApp chatApp) {
         this.socket = socket;
         this.executorService = Executors.newFixedThreadPool(threadPoolSize);
         this.routingManager = routingManager;
+        this.chatApp = chatApp;
     }
 
     public void start() {
@@ -65,7 +68,7 @@ public class UdpReceiver {
                 System.out.println("Checksum OK for packet from " + senderIP + ":" + senderPort);
             }
 
-            InetAddress localAddress = InetAddress.getByName("127.0.0.1");
+            InetAddress localAddress = InetAddress.getByName("192.168.56.1");
             int localPort = socket.getLocalPort();
 
             boolean isForMe =
@@ -76,12 +79,29 @@ public class UdpReceiver {
 
 
             if (isForMe) {
-                // Handle Packet
-                if (receivedPacket.getPayload() instanceof MessagePayload) {
-                    MessagePayload mp = (MessagePayload) receivedPacket.getPayload();
-                    System.out.println("Nachricht empfangen: " + mp.getMessageText());
-                } else {
-                    System.out.println("Empfangenes Payload: " + receivedPacket.getPayload().toString());
+                switch (header.getType()) {
+                    case ACK:
+                        break;
+                    case SYN:
+                        cha
+                        break;
+                    case SYN_ACK:
+                        break;
+                    case FIN:
+                        break;
+                    case FIN_ACK:
+                        break;
+                    case FILE:
+                        break;
+                    case MESSAGE:
+                        if (receivedPacket.getPayload() instanceof MessagePayload) {
+                            MessagePayload mp = (MessagePayload) receivedPacket.getPayload();
+                            System.out.println("Nachricht empfangen: " + mp.getMessageText());
+                        } else {
+                            System.out.println("Empfangenes Payload: " + receivedPacket.getPayload().toString());
+                        }
+                        break;
+                    default:
                 }
             } else {
                 // Weiterleiten

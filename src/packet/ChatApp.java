@@ -29,7 +29,7 @@ public class ChatApp extends Thread {
     @Override
     public void run() {
         // Starte Receiver...
-        UdpReceiver receiver = new UdpReceiver(chatSocket, 4, routingManager);
+        UdpReceiver receiver = new UdpReceiver(chatSocket, 4, routingManager, this);
         receiver.start();
 
         System.out.println("Chat-Anwendung gestartet auf " + ownAddress);
@@ -133,6 +133,36 @@ public class ChatApp extends Thread {
             sendMessage(activeChatPartnerAddress, messageText);
         } else {
             System.out.println("Kein aktiver Chatpartner. Nutze '/chat <IP:Port>' oder '/msg <IP:Port> <Nachricht>'.");
+        }
+    }
+
+    public void handshake(String destinationAddress, PacketType packetType) {
+        try {
+            String[] addrParts = destinationAddress.split(":");
+            if (addrParts.length != 2) {
+                System.out.println("FEHLER: Ungültiges Adressformat. Erwartet: IP:Port");
+                return;
+            }
+            InetAddress destIp = InetAddress.getByName(addrParts[0]);
+            int destPort = Integer.parseInt(addrParts[1]);
+
+            EmptyPayload emptyPayload = new EmptyPayload();
+            int checksum = calculateChecksum(emptyPayload.serialize());
+
+            // Header bauen
+            PacketHeader header = new PacketHeader(
+                    InetAddress.getLocalHost(), this.chatPort,
+                    destIp, destPort,
+                    packetType,
+                    emptyPayload.serialize().length,
+                    checksum
+            );
+
+            // Packet bauen & über den RoutingManager verschicken
+            Packet packet = new Packet(header, emptyPayload);
+            routingManager.sendMessageTo(chatSocket, destIp, destPort, packet);
+        } catch (UnknownHostException e) {
+            throw new RuntimeException(e);
         }
     }
 

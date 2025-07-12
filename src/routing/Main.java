@@ -14,7 +14,7 @@ public class Main {
             }
 
             // Lokale IP setzen – optional anpassen bei echtem Netzwerk
-            InetAddress ownIP = InetAddress.getByName("127.0.0.1");
+            InetAddress ownIP = InetAddress.getByName("192.168.56.1");
 
             int routingPort = Integer.parseInt(args[0]);
             int chatPort = routingPort + 1;
