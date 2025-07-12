@@ -2,8 +2,10 @@ package udpSocket;
 
 import packet.ChatApp;
 import packet.MessagePayload;
+
 import packet.Packet;
 import packet.PacketHeader;
+import packet.ChatApp;
 import routing.RoutingManager;
 import java.util.zip.CRC32;
 import java.util.Arrays;
@@ -74,35 +76,11 @@ public class UdpReceiver {
             boolean isForMe =
                     header.getDestIp().equals(localAddress) &&
                             header.getDestPort() + 1 == localPort;
-            System.out.println(header.getDestIp() + ":" + localPort);
-            System.out.println(header.getDestPort() + 1 + ":" + localAddress);
-
 
             if (isForMe) {
-                switch (header.getType()) {
-                    case ACK:
-                        break;
-                    case SYN:
-                        cha
-                        break;
-                    case SYN_ACK:
-                        break;
-                    case FIN:
-                        break;
-                    case FIN_ACK:
-                        break;
-                    case FILE:
-                        break;
-                    case MESSAGE:
-                        if (receivedPacket.getPayload() instanceof MessagePayload) {
-                            MessagePayload mp = (MessagePayload) receivedPacket.getPayload();
-                            System.out.println("Nachricht empfangen: " + mp.getMessageText());
-                        } else {
-                            System.out.println("Empfangenes Payload: " + receivedPacket.getPayload().toString());
-                        }
-                        break;
-                    default:
-                }
+
+                chatApp.onPacketReceived(receivedPacket);
+
             } else {
                 // Weiterleiten
                 System.out.println("Paket nicht für mich – Weiterleitung an " +

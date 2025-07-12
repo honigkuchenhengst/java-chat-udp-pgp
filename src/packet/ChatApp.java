@@ -9,6 +9,10 @@ import java.net.UnknownHostException;
 import java.util.Scanner;
 import java.util.zip.CRC32;
 
+import static packet.PacketType.*;
+
+import java.io.IOException;
+
 public class ChatApp extends Thread {
     private final RoutingManager routingManager;
     private final DatagramSocket chatSocket;
@@ -16,12 +20,17 @@ public class ChatApp extends Thread {
     private String activeChatPartnerAddress; // Speichert die IP:Port des Chatpartners als String
     private int messageIdCounter = 0;
     private String ownAddress; // Die eigene Adresse für die Anzeige in Nachrichten
+    private ConnectionState connectionState = ConnectionState.DISCONNECTED;
+    private InetAddress partnerIp;
+    private int partnerPort;
 
     public ChatApp(RoutingManager routingManager, int chatPort) throws SocketException, UnknownHostException {
         this.routingManager = routingManager;
         this.chatSocket = new DatagramSocket(chatPort);
         this.chatPort = chatPort;
         this.activeChatPartnerAddress = null;
+        this.partnerIp = null;
+        this.partnerPort = -1;
         // Speichere die eigene Adresse für die Nachrichten-Signatur
         this.ownAddress = InetAddress.getLocalHost().getHostAddress() + ":" + this.chatPort;
     }
@@ -60,15 +69,19 @@ public class ChatApp extends Thread {
                 if (parts.length < 2) {
                     System.out.println("FEHLER: Bitte eine Adresse angeben. Verwendung: /chat <IP:Port>");
                 } else {
-                    activeChatPartnerAddress = parts[1];
-                    System.out.println("Du sprichst jetzt mit '" + activeChatPartnerAddress + "'.");
+                    initiateHandshake(parts[1]);
                 }
                 break;
             case "/msg":
                 if (parts.length < 3) {
                     System.out.println("FEHLER: Verwendung: /msg <IP:Port> <Nachricht>");
                 } else {
-                    sendMessage(parts[1], parts[2]);
+                    if (connectionState != ConnectionState.CONNECTED || !parts[1].equals(activeChatPartnerAddress)) {
+                        initiateHandshake(parts[1]);
+                        System.out.println("Handshake wird durchgefuehrt. Bitte erneut senden.");
+                    } else {
+                        sendMessage(parts[1], parts[2]);
+                    }
                 }
                 break;
             case "/list":
@@ -115,6 +128,14 @@ public class ChatApp extends Thread {
                 }
                 break;
             case "/quit":
+                if (connectionState == ConnectionState.CONNECTED) {
+                    try {
+                        sendControlPacket(FIN, partnerIp, partnerPort);
+                        connectionState = ConnectionState.FIN_WAIT;
+                    } catch (Exception e) {
+                        // ignore
+                    }
+                }
                 System.out.println("Anwendung wird beendet...");
                 chatSocket.close();
                 System.exit(0);
@@ -130,7 +151,11 @@ public class ChatApp extends Thread {
 
     private void handleMessageInput(String messageText) {
         if (activeChatPartnerAddress != null) {
-            sendMessage(activeChatPartnerAddress, messageText);
+            if (connectionState == ConnectionState.CONNECTED) {
+                sendMessage(activeChatPartnerAddress, messageText);
+            } else {
+                System.out.println("Keine aktive Verbindung. Bitte warte auf den Handshake.");
+            }
         } else {
             System.out.println("Kein aktiver Chatpartner. Nutze '/chat <IP:Port>' oder '/msg <IP:Port> <Nachricht>'.");
         }
@@ -180,6 +205,11 @@ public class ChatApp extends Thread {
             InetAddress destIp = InetAddress.getByName(addrParts[0]);
             int destPort = Integer.parseInt(addrParts[1]);
 
+            if (connectionState != ConnectionState.CONNECTED) {
+                System.out.println("Keine Verbindung. Fuehre zuerst /chat fuer den Handshake aus.");
+                return;
+            }
+
             // Payload bauen (ohne Namen)
             MessagePayload payload = new MessagePayload(
                     messageIdCounter++, 1, 1, "[" + this.ownAddress + "]: " + messageText
@@ -224,5 +254,98 @@ public class ChatApp extends Thread {
         CRC32 crc32 = new CRC32();
         crc32.update(data);
         return (int) crc32.getValue();
+    }
+
+    private void initiateHandshake(String address) {
+        try {
+            String[] parts = address.split(":");
+            partnerIp = InetAddress.getByName(parts[0]);
+            partnerPort = Integer.parseInt(parts[1]);
+            activeChatPartnerAddress = address;
+            sendControlPacket(SYN, partnerIp, partnerPort);
+            connectionState = ConnectionState.SYN_SENT;
+            System.out.println("Handshake gestartet mit " + address);
+        } catch (Exception e) {
+            System.out.println("FEHLER beim Handshake: " + e.getMessage());
+        }
+    }
+
+    private void sendControlPacket(PacketType type, InetAddress ip, int port) throws IOException {
+        EmptyPayload payload = new EmptyPayload();
+        int checksum = calculateChecksum(payload.serialize());
+        PacketHeader header = new PacketHeader(
+                InetAddress.getLocalHost(), this.chatPort,
+                ip, port,
+                type,
+                0,
+                checksum
+        );
+        Packet p = new Packet(header, payload);
+        routingManager.sendMessageTo(chatSocket, ip, port, p);
+    }
+
+    public synchronized void onPacketReceived(Packet packet) {
+        PacketHeader header = packet.getHeader();
+        String source = header.getSourceIp().getHostAddress() + ":" + header.getSourcePort();
+        switch (header.getType()) {
+            case SYN:
+                if (connectionState == ConnectionState.DISCONNECTED) {
+                    partnerIp = header.getSourceIp();
+                    partnerPort = header.getSourcePort();
+                    activeChatPartnerAddress = source;
+                    try {
+                        sendControlPacket(SYN_ACK, partnerIp, partnerPort);
+                        connectionState = ConnectionState.SYN_RECEIVED;
+                    } catch (IOException e) {
+                        // ignore
+                    }
+                    System.out.println("SYN empfangen von " + source);
+                }
+                break;
+            case SYN_ACK:
+                if (connectionState == ConnectionState.SYN_SENT) {
+                    try {
+                        sendControlPacket(ACK, partnerIp, partnerPort);
+                        connectionState = ConnectionState.CONNECTED;
+                    } catch (IOException e) {
+                        // ignore
+                    }
+                    System.out.println("Verbindung hergestellt mit " + activeChatPartnerAddress);
+                }
+                break;
+            case ACK:
+                if (connectionState == ConnectionState.SYN_RECEIVED) {
+                    connectionState = ConnectionState.CONNECTED;
+                    System.out.println("Verbindung hergestellt mit " + activeChatPartnerAddress);
+                }
+                break;
+            case FIN:
+                if (activeChatPartnerAddress != null && activeChatPartnerAddress.equals(source)) {
+                    try {
+                        sendControlPacket(FIN_ACK, partnerIp, partnerPort);
+                    } catch (IOException e) {
+                        // ignore
+                    }
+                    connectionState = ConnectionState.DISCONNECTED;
+                    activeChatPartnerAddress = null;
+                    System.out.println("Verbindung von " + source + " geschlossen.");
+                }
+                break;
+            case FIN_ACK:
+                if (connectionState == ConnectionState.FIN_WAIT) {
+                    connectionState = ConnectionState.DISCONNECTED;
+                    activeChatPartnerAddress = null;
+                    System.out.println("Verbindung geschlossen.");
+                }
+                break;
+            case MESSAGE:
+                if (packet.getPayload() instanceof MessagePayload) {
+                    MessagePayload mp = (MessagePayload) packet.getPayload();
+                    System.out.println("Nachricht empfangen: " + mp.getMessageText());
+                }
+                break;
+            default:
+                break;
+        }
     }
 }
