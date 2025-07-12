@@ -78,9 +78,10 @@ public class RoutingManager {
         }
     }
 
-    private void disconnect(InetAddress address,int port){
+    public void disconnect(InetAddress address,int port){
         Neighbor neighborToForget = new Neighbor(address, port);
         if(!this.neighbors.contains(neighborToForget)){
+            System.out.println("Nachbar " + address.getHostAddress() + ":" + port + " unbekannt.");
             return;
         }
         this.neighbors.remove(neighborToForget);
@@ -93,8 +94,13 @@ public class RoutingManager {
         this.sendUpdatesToNeighbors();
     }
 
-    private void connect(InetAddress address, int port){
-        this.neighbors.add(new Neighbor(address, port));
+    public void connect(InetAddress address, int port){
+        Neighbor newNeighbor = new Neighbor(address, port);
+        if(this.neighbors.contains(newNeighbor)){
+            System.out.println("Bereits mit " + address.getHostAddress() + ":" + port + " verbunden.");
+            return;
+        }
+        this.neighbors.add(newNeighbor);
         try {
             byte[] data = routingTable.serializeWithHeaderOnlyThisNode(ownIP, ownPort, address, port);
             DatagramPacket packet = new DatagramPacket(data, data.length, address, port);
@@ -105,6 +111,7 @@ public class RoutingManager {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        System.out.println("Verbunden mit " + address.getHostAddress() + ":" + port + ".");
     }
 
     private void processReceivedTable(byte[] data) {
