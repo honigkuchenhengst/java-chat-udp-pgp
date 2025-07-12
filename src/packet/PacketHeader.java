@@ -14,7 +14,7 @@ public class PacketHeader {
     private int packetLength;
     private int checksum;
 
-    public static final int HEADER_SIZE = 17;
+    public static final int HEADER_SIZE = 19;
 
     public PacketHeader(InetAddress sourceIp, int sourcePort,
                         InetAddress destIp, int destPort,
@@ -36,7 +36,7 @@ public class PacketHeader {
         buffer.putShort((short) destPort);              // 2 Bytes
         buffer.put(type.getCode());                     // 1 Byte
         buffer.putShort((short) packetLength);          // 2 Bytes
-        buffer.putShort((short) checksum);              // 2 Bytes
+        buffer.putInt(checksum);                        // 4 Bytes
         return buffer.array();
     }
 
@@ -65,7 +65,7 @@ public class PacketHeader {
         PacketType type = PacketType.fromCode(typeCode);
 
         int packetLength = Short.toUnsignedInt(buffer.getShort());
-        int checksum = Short.toUnsignedInt(buffer.getShort());
+        int checksum = buffer.getInt();
 
         return new PacketHeader(sourceIp, sourcePort, destIp, destPort, type, packetLength, checksum);
     }

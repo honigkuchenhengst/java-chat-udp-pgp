@@ -78,9 +78,10 @@ public class RoutingManager {
         }
     }
 
-    private void disconnect(InetAddress address,int port){
+    public void disconnect(InetAddress address,int port){
         Neighbor neighborToForget = new Neighbor(address, port);
         if(!this.neighbors.contains(neighborToForget)){
+            System.out.println("Nachbar " + address.getHostAddress() + ":" + port + " unbekannt.");
             return;
         }
         this.neighbors.remove(neighborToForget);
@@ -93,8 +94,13 @@ public class RoutingManager {
         this.sendUpdatesToNeighbors();
     }
 
-    private void connect(InetAddress address, int port){
-        this.neighbors.add(new Neighbor(address, port));
+    public void connect(InetAddress address, int port){
+        Neighbor newNeighbor = new Neighbor(address, port);
+        if(this.neighbors.contains(newNeighbor)){
+            System.out.println("Bereits mit " + address.getHostAddress() + ":" + port + " verbunden.");
+            return;
+        }
+        this.neighbors.add(newNeighbor);
         try {
             byte[] data = routingTable.serializeWithHeaderOnlyThisNode(ownIP, ownPort, address, port);
             DatagramPacket packet = new DatagramPacket(data, data.length, address, port);
@@ -105,6 +111,7 @@ public class RoutingManager {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        System.out.println("Verbunden mit " + address.getHostAddress() + ":" + port + ".");
     }
 
     private void processReceivedTable(byte[] data) {
@@ -367,5 +374,24 @@ public class RoutingManager {
             System.err.println("Fehler beim Weiterleiten des Pakets: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+    public void printKnownNodes() {
+        if (routingTable.getEntries().isEmpty()) {
+            System.out.println("Routing-Tabelle ist leer.");
+            return;
+        }
+        System.out.println("--- Erreichbare Teilnehmer (Routing-Tabelle) ---");
+        System.out.println("Ziel\t\t\tVia (Next Hop)\t\tHops");
+        System.out.println("------------------------------------------------------------------");
+
+        // Annahme: routingTable.getEntries() gibt eine Collection von RoutingEntry zurück
+        for (RoutingEntry entry : routingTable.getEntries()) {
+            String targetAddress = entry.getDestinationIP().getHostAddress() + ":" + entry.getDestinationPort();
+            String nextHop = entry.getNextHopIP().getHostAddress() + ":" + entry.getNextHopPort();
+            String hops = (entry.getHopCount() >= 16) ? "unreachable" : String.valueOf(entry.getHopCount());
+
+            System.out.printf("%-20s\t%-20s\t%s%n", targetAddress, nextHop, hops);
+        }
+        System.out.println("------------------------------------------------------------------");
     }
 }
