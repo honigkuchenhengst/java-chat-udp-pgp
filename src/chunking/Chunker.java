@@ -4,6 +4,7 @@ import packet.*;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 public class Chunker {
@@ -42,9 +43,12 @@ public class Chunker {
         // --- Teste nun das Chunking ---
         int messageId = 1;
         List<MessageChunk> chunks = splitIntoChunks(messageId, packetSer);
-
+        for(MessageChunk chunk : chunks) {
+            String data = new String(chunk.getData(), StandardCharsets.UTF_8);
+            System.out.println(data);
+        }
         // Simuliere Empfang und Zusammenbau
-        ChunkManager manager = new ChunkManager();
+        ChunkManager manager = new ChunkManager(2);
         for (MessageChunk chunk : chunks) {
             manager.addChunk(chunk);
         }
