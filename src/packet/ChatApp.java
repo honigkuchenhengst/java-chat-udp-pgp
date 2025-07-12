@@ -8,6 +8,11 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Scanner;
 import java.util.zip.CRC32;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.nio.file.Files;
+import chunking.FileChunk;
+import chunking.FileChunkManager;
 
 import static packet.PacketType.*;
 
@@ -26,6 +31,10 @@ public class ChatApp extends Thread {
 
     private String pendingMessage = null;
     private boolean closeAfterSend = false;
+    private String pendingFilePath = null;
+    private boolean sendFileAfterConnect = false;
+    private int fileIdCounter = 0;
+    private final FileChunkManager fileChunkManager = new FileChunkManager();
 
     public ChatApp(RoutingManager routingManager, int chatPort) throws SocketException, UnknownHostException {
         this.routingManager = routingManager;
@@ -93,6 +102,19 @@ public class ChatApp extends Thread {
                             // ignore
                         }
 
+                    }
+                }
+                break;
+            case "/file":
+                if (parts.length < 3) {
+                    System.out.println("FEHLER: Verwendung: /file <IP:Port> <Pfad>");
+                } else {
+                    if (connectionState != ConnectionState.CONNECTED || !parts[1].equals(activeChatPartnerAddress)) {
+                        pendingFilePath = parts[2];
+                        sendFileAfterConnect = true;
+                        initiateHandshake(parts[1]);
+                    } else {
+                        sendFile(parts[1], parts[2]);
                     }
                 }
                 break;
@@ -250,10 +272,78 @@ public class ChatApp extends Thread {
         }
     }
 
+    private void sendFile(String destinationAddress, String path) {
+        try {
+            String[] addrParts = destinationAddress.split(":");
+            if (addrParts.length != 2) {
+                System.out.println("FEHLER: Ungültiges Adressformat. Erwartet: IP:Port");
+                return;
+            }
+            InetAddress destIp = InetAddress.getByName(addrParts[0]);
+            int destPort = Integer.parseInt(addrParts[1]);
+
+            if (connectionState != ConnectionState.CONNECTED) {
+                System.out.println("Keine Verbindung. Fuehre zuerst /chat fuer den Handshake aus.");
+                return;
+            }
+
+            File file = new File(path);
+            if (!file.exists()) {
+                System.out.println("Datei nicht gefunden: " + path);
+                return;
+            }
+
+            byte[] fileData = Files.readAllBytes(file.toPath());
+
+            int fileId = fileIdCounter++;
+            int mtu = 1000;
+            int firstChunkSize = mtu - 40;
+            int otherChunkSize = mtu - 10;
+
+            int totalChunks = 1 + (fileData.length > firstChunkSize ?
+                    (int) Math.ceil((fileData.length - firstChunkSize) / (double) otherChunkSize) : 0);
+
+            int offset = 0;
+            for (int i = 0; i < totalChunks; i++) {
+                byte[] chunkData;
+                String fname = null;
+                if (i == 0) {
+                    int len = Math.min(firstChunkSize, fileData.length);
+                    chunkData = new byte[len];
+                    System.arraycopy(fileData, 0, chunkData, 0, len);
+                    offset += len;
+                    fname = file.getName();
+                } else {
+                    int len = Math.min(otherChunkSize, fileData.length - offset);
+                    chunkData = new byte[len];
+                    System.arraycopy(fileData, offset, chunkData, 0, len);
+                    offset += len;
+                }
+
+                FilePayload payload = new FilePayload(fileId, i, totalChunks, fname, chunkData);
+                int checksum = calculateChecksum(payload.serialize());
+
+                PacketHeader header = new PacketHeader(
+                        InetAddress.getLocalHost(), this.chatPort,
+                        destIp, destPort,
+                        PacketType.FILE,
+                        payload.serialize().length,
+                        checksum
+                );
+                Packet packet = new Packet(header, payload);
+                routingManager.sendMessageTo(chatSocket, destIp, destPort, packet);
+            }
+
+        } catch (Exception e) {
+            System.out.println("FEHLER beim Senden der Datei: " + e.getMessage());
+        }
+    }
+
     private void printHelp() {
         System.out.println("--- Verfügbare Befehle ---");
         System.out.println("/chat <IP:Port>    - Startet einen interaktiven Chat.");
         System.out.println("/msg <IP:Port> <text> - Sendet eine einzelne Nachricht.");
+        System.out.println("/file <IP:Port> <pfad> - Sendet eine Datei.");
         System.out.println("/connect <IP:Port>   - Verbindet sich mit einem Nachbarn.");
         System.out.println("/disconnect <IP:Port> - Trennt die Verbindung zu einem Nachbarn.");
         System.out.println("/list              - Zeigt alle erreichbaren Teilnehmer an.");
@@ -309,6 +399,11 @@ public class ChatApp extends Thread {
                 }
                 closeAfterSend = false;
             }
+        }
+        if (pendingFilePath != null) {
+            sendFile(activeChatPartnerAddress, pendingFilePath);
+            pendingFilePath = null;
+            sendFileAfterConnect = false;
         }
     }
 
@@ -375,6 +470,27 @@ public class ChatApp extends Thread {
                 if (packet.getPayload() instanceof MessagePayload) {
                     MessagePayload mp = (MessagePayload) packet.getPayload();
                     System.out.println("Nachricht empfangen: " + mp.getMessageText());
+                }
+                break;
+            case FILE:
+                if (packet.getPayload() instanceof FilePayload) {
+                    FilePayload fp = (FilePayload) packet.getPayload();
+                    FileChunk chunk = new FileChunk(fp.getFileId(), fp.getChunkNumber(), fp.getTotalChunks(), fp.getData(),
+                            fp.getFileName() != null ? fp.getFileName().getBytes() : new byte[30]);
+                    fileChunkManager.addChunk(chunk);
+                    if (fileChunkManager.isComplete(fp.getFileId())) {
+                        try {
+                            byte[] fdata = fileChunkManager.assembleFile(fp.getFileId());
+                            String name = fileChunkManager.getFileName(fp.getFileId());
+                            if (name == null || name.isEmpty()) name = "received.bin";
+                            FileOutputStream fos = new FileOutputStream("recv_" + name);
+                            fos.write(fdata);
+                            fos.close();
+                            System.out.println("Datei empfangen und gespeichert als recv_" + name);
+                        } catch (IOException e) {
+                            System.out.println("Fehler beim Speichern der Datei: " + e.getMessage());
+                        }
+                    }
                 }
                 break;
             default:
