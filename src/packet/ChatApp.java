@@ -87,6 +87,46 @@ public class ChatApp extends Thread {
             case "/list":
                 routingManager.printKnownNodes(); // Ruft die neue, einfache Methode auf
                 break;
+            case "/connect":
+                if (parts.length < 2) {
+                    System.out.println("FEHLER: Verwendung: /connect <IP:Port>");
+                } else {
+                    String[] addrParts = parts[1].split(":");
+                    if (addrParts.length != 2) {
+                        System.out.println("FEHLER: Ungültiges Adressformat. Erwartet: IP:Port");
+                        break;
+                    }
+                    try {
+                        InetAddress ip = InetAddress.getByName(addrParts[0]);
+                        int port = Integer.parseInt(addrParts[1]);
+                        routingManager.connect(ip, port);
+                    } catch (UnknownHostException e) {
+                        System.out.println("FEHLER: Host '" + addrParts[0] + "' ist unbekannt.");
+                    } catch (NumberFormatException e) {
+                        System.out.println("FEHLER: Ungültiger Port in Adresse '"+ parts[1] +"'.");
+                    }
+                }
+                break;
+            case "/disconnect":
+                if (parts.length < 2) {
+                    System.out.println("FEHLER: Verwendung: /disconnect <IP:Port>");
+                } else {
+                    String[] addrParts = parts[1].split(":");
+                    if (addrParts.length != 2) {
+                        System.out.println("FEHLER: Ungültiges Adressformat. Erwartet: IP:Port");
+                        break;
+                    }
+                    try {
+                        InetAddress ip = InetAddress.getByName(addrParts[0]);
+                        int port = Integer.parseInt(addrParts[1]);
+                        routingManager.disconnect(ip, port);
+                    } catch (UnknownHostException e) {
+                        System.out.println("FEHLER: Host '" + addrParts[0] + "' ist unbekannt.");
+                    } catch (NumberFormatException e) {
+                        System.out.println("FEHLER: Ungültiger Port in Adresse '"+ parts[1] +"'.");
+                    }
+                }
+                break;
             case "/quit":
                 if (connectionState == ConnectionState.CONNECTED) {
                     try {
@@ -118,6 +158,36 @@ public class ChatApp extends Thread {
             }
         } else {
             System.out.println("Kein aktiver Chatpartner. Nutze '/chat <IP:Port>' oder '/msg <IP:Port> <Nachricht>'.");
+        }
+    }
+
+    public void handshake(String destinationAddress, PacketType packetType) {
+        try {
+            String[] addrParts = destinationAddress.split(":");
+            if (addrParts.length != 2) {
+                System.out.println("FEHLER: Ungültiges Adressformat. Erwartet: IP:Port");
+                return;
+            }
+            InetAddress destIp = InetAddress.getByName(addrParts[0]);
+            int destPort = Integer.parseInt(addrParts[1]);
+
+            EmptyPayload emptyPayload = new EmptyPayload();
+            int checksum = calculateChecksum(emptyPayload.serialize());
+
+            // Header bauen
+            PacketHeader header = new PacketHeader(
+                    InetAddress.getLocalHost(), this.chatPort,
+                    destIp, destPort,
+                    packetType,
+                    emptyPayload.serialize().length,
+                    checksum
+            );
+
+            // Packet bauen & über den RoutingManager verschicken
+            Packet packet = new Packet(header, emptyPayload);
+            routingManager.sendMessageTo(chatSocket, destIp, destPort, packet);
+        } catch (UnknownHostException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -172,6 +242,8 @@ public class ChatApp extends Thread {
         System.out.println("--- Verfügbare Befehle ---");
         System.out.println("/chat <IP:Port>    - Startet einen interaktiven Chat.");
         System.out.println("/msg <IP:Port> <text> - Sendet eine einzelne Nachricht.");
+        System.out.println("/connect <IP:Port>   - Verbindet sich mit einem Nachbarn.");
+        System.out.println("/disconnect <IP:Port> - Trennt die Verbindung zu einem Nachbarn.");
         System.out.println("/list              - Zeigt alle erreichbaren Teilnehmer an.");
         System.out.println("/help              - Zeigt diese Hilfe an.");
         System.out.println("/quit              - Beendet die Anwendung.");
