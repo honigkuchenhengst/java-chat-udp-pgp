@@ -74,6 +74,46 @@ public class ChatApp extends Thread {
             case "/list":
                 routingManager.printKnownNodes(); // Ruft die neue, einfache Methode auf
                 break;
+            case "/connect":
+                if (parts.length < 2) {
+                    System.out.println("FEHLER: Verwendung: /connect <IP:Port>");
+                } else {
+                    String[] addrParts = parts[1].split(":");
+                    if (addrParts.length != 2) {
+                        System.out.println("FEHLER: Ungültiges Adressformat. Erwartet: IP:Port");
+                        break;
+                    }
+                    try {
+                        InetAddress ip = InetAddress.getByName(addrParts[0]);
+                        int port = Integer.parseInt(addrParts[1]);
+                        routingManager.connect(ip, port);
+                    } catch (UnknownHostException e) {
+                        System.out.println("FEHLER: Host '" + addrParts[0] + "' ist unbekannt.");
+                    } catch (NumberFormatException e) {
+                        System.out.println("FEHLER: Ungültiger Port in Adresse '"+ parts[1] +"'.");
+                    }
+                }
+                break;
+            case "/disconnect":
+                if (parts.length < 2) {
+                    System.out.println("FEHLER: Verwendung: /disconnect <IP:Port>");
+                } else {
+                    String[] addrParts = parts[1].split(":");
+                    if (addrParts.length != 2) {
+                        System.out.println("FEHLER: Ungültiges Adressformat. Erwartet: IP:Port");
+                        break;
+                    }
+                    try {
+                        InetAddress ip = InetAddress.getByName(addrParts[0]);
+                        int port = Integer.parseInt(addrParts[1]);
+                        routingManager.disconnect(ip, port);
+                    } catch (UnknownHostException e) {
+                        System.out.println("FEHLER: Host '" + addrParts[0] + "' ist unbekannt.");
+                    } catch (NumberFormatException e) {
+                        System.out.println("FEHLER: Ungültiger Port in Adresse '"+ parts[1] +"'.");
+                    }
+                }
+                break;
             case "/quit":
                 System.out.println("Anwendung wird beendet...");
                 chatSocket.close();
@@ -142,6 +182,8 @@ public class ChatApp extends Thread {
         System.out.println("--- Verfügbare Befehle ---");
         System.out.println("/chat <IP:Port>    - Startet einen interaktiven Chat.");
         System.out.println("/msg <IP:Port> <text> - Sendet eine einzelne Nachricht.");
+        System.out.println("/connect <IP:Port>   - Verbindet sich mit einem Nachbarn.");
+        System.out.println("/disconnect <IP:Port> - Trennt die Verbindung zu einem Nachbarn.");
         System.out.println("/list              - Zeigt alle erreichbaren Teilnehmer an.");
         System.out.println("/help              - Zeigt diese Hilfe an.");
         System.out.println("/quit              - Beendet die Anwendung.");
