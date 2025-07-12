@@ -1,8 +1,8 @@
 package udpSocket;
 
-import packet.MessagePayload;
 import packet.Packet;
 import packet.PacketHeader;
+import packet.ChatApp;
 import routing.RoutingManager;
 
 import java.io.IOException;
@@ -17,11 +17,13 @@ public class UdpReceiver {
     private final DatagramSocket socket;
     private final ExecutorService executorService;
     private final RoutingManager routingManager;
+    private final ChatApp chatApp;
 
-    public UdpReceiver(DatagramSocket socket, int threadPoolSize, RoutingManager routingManager) {
+    public UdpReceiver(DatagramSocket socket, int threadPoolSize, RoutingManager routingManager, ChatApp chatApp) {
         this.socket = socket;
         this.executorService = Executors.newFixedThreadPool(threadPoolSize);
         this.routingManager = routingManager;
+        this.chatApp = chatApp;
     }
 
     public void start() {
@@ -56,18 +58,9 @@ public class UdpReceiver {
             boolean isForMe =
                     header.getDestIp().equals(localAddress) &&
                             header.getDestPort() + 1 == localPort;
-            System.out.println(header.getDestIp() + ":" + localPort);
-            System.out.println(header.getDestPort() + 1 + ":" + localAddress);
-
 
             if (isForMe) {
-                // Handle Packet
-                if (receivedPacket.getPayload() instanceof MessagePayload) {
-                    MessagePayload mp = (MessagePayload) receivedPacket.getPayload();
-                    System.out.println("Nachricht empfangen: " + mp.getMessageText());
-                } else {
-                    System.out.println("Empfangenes Payload: " + receivedPacket.getPayload().toString());
-                }
+                chatApp.onPacketReceived(receivedPacket);
             } else {
                 // Weiterleiten
                 System.out.println("Paket nicht für mich – Weiterleitung an " +
