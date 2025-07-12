@@ -35,6 +35,8 @@ public class ChatApp extends Thread {
     private boolean sendFileAfterConnect = false;
     private int fileIdCounter = 0;
     private final FileChunkManager fileChunkManager = new FileChunkManager();
+    private final java.util.Map<Integer, Integer> fileAckMap = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Map<Integer, Integer> expectedChunkMap = new java.util.concurrent.ConcurrentHashMap<>();
 
     public ChatApp(RoutingManager routingManager, int chatPort) throws SocketException, UnknownHostException {
         this.routingManager = routingManager;
@@ -303,6 +305,7 @@ public class ChatApp extends Thread {
             int totalChunks = 1 + (fileData.length > firstChunkSize ?
                     (int) Math.ceil((fileData.length - firstChunkSize) / (double) otherChunkSize) : 0);
 
+            java.util.List<Packet> packets = new java.util.ArrayList<>();
             int offset = 0;
             for (int i = 0; i < totalChunks; i++) {
                 byte[] chunkData;
@@ -322,7 +325,6 @@ public class ChatApp extends Thread {
 
                 FilePayload payload = new FilePayload(fileId, i, totalChunks, fname, chunkData);
                 int checksum = calculateChecksum(payload.serialize());
-
                 PacketHeader header = new PacketHeader(
                         InetAddress.getLocalHost(), this.chatPort,
                         destIp, destPort,
@@ -330,9 +332,39 @@ public class ChatApp extends Thread {
                         payload.serialize().length,
                         checksum
                 );
-                Packet packet = new Packet(header, payload);
-                routingManager.sendMessageTo(chatSocket, destIp, destPort, packet);
+                packets.add(new Packet(header, payload));
             }
+
+            fileAckMap.put(fileId, 0);
+            int base = 0;
+            int nextSeq = 0;
+            long[] lastSend = new long[totalChunks];
+            long timeout = 1000;
+
+            while (base < totalChunks) {
+                while (nextSeq < base + GoBackNConfig.WINDOW_SIZE && nextSeq < totalChunks) {
+                    routingManager.sendMessageTo(chatSocket, destIp, destPort, packets.get(nextSeq));
+                    lastSend[nextSeq] = System.currentTimeMillis();
+                    nextSeq++;
+                }
+
+                synchronized (fileAckMap) {
+                    try {
+                        long wait = timeout - (System.currentTimeMillis() - lastSend[base]);
+                        if (wait > 0 && fileAckMap.get(fileId) <= base) {
+                            fileAckMap.wait(wait);
+                        }
+                    } catch (InterruptedException ignored) {}
+
+                    int acked = fileAckMap.get(fileId);
+                    if (acked > base) {
+                        base = acked;
+                    } else {
+                        nextSeq = base;
+                    }
+                }
+            }
+            fileAckMap.remove(fileId);
 
         } catch (Exception e) {
             System.out.println("FEHLER beim Senden der Datei: " + e.getMessage());
@@ -380,6 +412,20 @@ public class ChatApp extends Thread {
                 ip, port,
                 type,
                 0,
+                checksum
+        );
+        Packet p = new Packet(header, payload);
+        routingManager.sendMessageTo(chatSocket, ip, port, p);
+    }
+
+    private void sendAckPacket(InetAddress ip, int port, int fileId, int ackNumber) throws IOException {
+        AckPayload payload = new AckPayload(fileId, ackNumber);
+        int checksum = calculateChecksum(payload.serialize());
+        PacketHeader header = new PacketHeader(
+                InetAddress.getLocalHost(), this.chatPort,
+                ip, port,
+                PacketType.DATA_ACK,
+                payload.serialize().length,
                 checksum
         );
         Packet p = new Packet(header, payload);
@@ -478,6 +524,16 @@ public class ChatApp extends Thread {
                     FileChunk chunk = new FileChunk(fp.getFileId(), fp.getChunkNumber(), fp.getTotalChunks(), fp.getData(),
                             fp.getFileName() != null ? fp.getFileName().getBytes() : new byte[30]);
                     fileChunkManager.addChunk(chunk);
+                    int expected = expectedChunkMap.getOrDefault(fp.getFileId(), 0);
+                    if (fp.getChunkNumber() == expected) {
+                        expectedChunkMap.put(fp.getFileId(), expected + 1);
+                    }
+                    int nextExpected = expectedChunkMap.getOrDefault(fp.getFileId(), 0);
+                    try {
+                        sendAckPacket(header.getSourceIp(), header.getSourcePort(), fp.getFileId(), nextExpected);
+                    } catch (IOException e) {
+                        // ignore
+                    }
                     if (fileChunkManager.isComplete(fp.getFileId())) {
                         try {
                             byte[] fdata = fileChunkManager.assembleFile(fp.getFileId());
@@ -490,6 +546,15 @@ public class ChatApp extends Thread {
                         } catch (IOException e) {
                             System.out.println("Fehler beim Speichern der Datei: " + e.getMessage());
                         }
+                    }
+                }
+                break;
+            case DATA_ACK:
+                if (packet.getPayload() instanceof AckPayload) {
+                    AckPayload ap = (AckPayload) packet.getPayload();
+                    synchronized (fileAckMap) {
+                        fileAckMap.put(ap.getFileId(), ap.getAckNumber());
+                        fileAckMap.notifyAll();
                     }
                 }
                 break;

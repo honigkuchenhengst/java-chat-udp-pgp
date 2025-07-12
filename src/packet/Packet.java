@@ -46,6 +46,9 @@ public class Packet {
             case FIN_ACK:
                 payload = EmptyPayload.deserialize(payloadBytes);
                 break;
+            case DATA_ACK:
+                payload = AckPayload.deserialize(payloadBytes);
+                break;
             default:
                 throw new IllegalArgumentException("Unbekannter PacketType");
         }
