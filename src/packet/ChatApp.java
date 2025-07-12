@@ -414,7 +414,7 @@ public class ChatApp extends Thread {
             case SYN:
                 if (connectionState == ConnectionState.DISCONNECTED) {
                     partnerIp = header.getSourceIp();
-                    partnerPort = header.getSourcePort();
+                    partnerPort = header.getSourcePort() - 1;
                     activeChatPartnerAddress = source;
                     try {
                         sendControlPacket(SYN_ACK, partnerIp, partnerPort);
