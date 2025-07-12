@@ -92,6 +92,7 @@ public class RoutingManager {
         this.routingTable.getEntries().remove(existingOpt.get());
         this.routingTable.addEntry(new RoutingEntry(address,port,address,port,inf));
         this.sendUpdatesToNeighbors();
+        //TODO schalte auch alle ziele die über diesen nachbarn erreicht werden auf inf
     }
 
     public void connect(InetAddress address, int port){
@@ -363,10 +364,11 @@ public class RoutingManager {
         try {
             byte[] serializedData = packet.serialize();
             InetAddress destIp = packet.getHeader().getDestIp();
-            int destPort = packet.getHeader().getDestPort() + 1;
+            int destPort = packet.getHeader().getDestPort();
 
-            DatagramPacket datagramPacket = new DatagramPacket(serializedData, serializedData.length, destIp, destPort);
-            socket.send(datagramPacket);
+            DatagramPacket datagramPacket = new DatagramPacket(serializedData, serializedData.length, destIp, destPort + 1);
+            sendMessageTo(socket, destIp, destPort , packet);
+            //socket.send(datagramPacket);
 
             System.out.println("Weitergeleitet an " + destIp.getHostAddress() + ":" + destPort +
                     " (" + serializedData.length + " Bytes)");

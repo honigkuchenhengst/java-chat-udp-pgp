@@ -52,7 +52,7 @@ public class RoutingTable {
         buffer.putShort((short) sourcePort);
         buffer.put(destIP.getAddress());
         buffer.putShort((short) destPort);
-        buffer.putShort((short) tableLength);
+        buffer.putShort((short) 1);
         buffer.put(entries.get(0).serialize());
 
         return buffer.array();
