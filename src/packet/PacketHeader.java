@@ -22,7 +22,7 @@ public class PacketHeader {
         this.sourceIp = sourceIp;
         this.sourcePort = sourcePort;
         this.destIp = destIp;
-        this.destPort = destPort + 1;
+        this.destPort = destPort;
         this.type = type;
         this.packetLength = packetLength;
         this.checksum = checksum;

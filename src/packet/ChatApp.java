@@ -244,7 +244,7 @@ public class ChatApp extends Thread {
                 return;
             }
             InetAddress destIp = InetAddress.getByName(addrParts[0]);
-            int destPort = Integer.parseInt(addrParts[1]);
+            int destPort = Integer.parseInt(addrParts[1]) + 1; //HeaderChat
 
             if (connectionState != ConnectionState.CONNECTED) {
                 System.out.println("Keine Verbindung. Fuehre zuerst /chat fuer den Handshake aus.");
@@ -289,7 +289,7 @@ public class ChatApp extends Thread {
                 return;
             }
             InetAddress destIp = InetAddress.getByName(addrParts[0]);
-            int destPort = Integer.parseInt(addrParts[1]);
+            int destPort = Integer.parseInt(addrParts[1]) + 1; //HeaderChat
 
             if (connectionState != ConnectionState.CONNECTED) {
                 System.out.println("Keine Verbindung. Fuehre zuerst /chat fuer den Handshake aus.");
@@ -404,7 +404,7 @@ public class ChatApp extends Thread {
         try {
             String[] parts = address.split(":");
             partnerIp = InetAddress.getByName(parts[0]);
-            partnerPort = Integer.parseInt(parts[1]);
+            partnerPort = Integer.parseInt(parts[1]) + 1; //HeaderChat
             activeChatPartnerAddress = address;
             sendControlPacket(SYN, partnerIp, partnerPort);
             connectionState = ConnectionState.SYN_SENT;
