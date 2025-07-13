@@ -374,6 +374,7 @@ public class ChatApp extends Thread {
                 }
             }
             fileAckMap.remove(fileId);
+            sendControlPacket(FIN,destIp,destPort);
 
         } catch (Exception e) {
             System.out.println("FEHLER beim Senden der Datei: " + e.getMessage());
