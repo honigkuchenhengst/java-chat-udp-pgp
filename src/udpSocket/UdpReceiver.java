@@ -79,7 +79,7 @@ public class UdpReceiver {
 
             boolean isForMe =
                     header.getDestIp().equals(localAddress) &&
-                            header.getDestPort() + 1 == localPort;
+                            header.getDestPort()  == localPort;
 
             if (isForMe) {
                 chatApp.onPacketReceived(receivedPacket);
