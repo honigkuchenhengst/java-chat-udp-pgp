@@ -28,7 +28,6 @@ public class Packet {
     public static Packet deserialize(byte[] data) throws Exception {
         byte[] headerBytes = Arrays.copyOfRange(data, 0, PacketHeader.HEADER_SIZE);
         PacketHeader header = PacketHeader.deserialize(headerBytes);
-
         byte[] payloadBytes = Arrays.copyOfRange(data, PacketHeader.HEADER_SIZE, data.length);
         Payload payload;
 

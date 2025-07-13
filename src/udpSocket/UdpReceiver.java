@@ -56,6 +56,7 @@ public class UdpReceiver {
 
     private void handlePacket(byte[] data, String senderIP, int senderPort) {
         try {
+            System.out.println("Es wurde ein Paket der Länge " + data.length + " bytes empfangen!");
             Packet receivedPacket = Packet.deserialize(data);
             PacketHeader header = receivedPacket.getHeader();
 
@@ -72,7 +73,7 @@ public class UdpReceiver {
             } else {
                 System.out.println("Checksum OK for packet from " + senderIP + ":" + senderPort);
             }
-
+            //TODO WARUM MUSS HIER ALS NEUER STRING ANGEGEBEN WERDEN?!
             InetAddress localAddress = InetAddress.getByName(ownAddress);
             int localPort = socket.getLocalPort();
 

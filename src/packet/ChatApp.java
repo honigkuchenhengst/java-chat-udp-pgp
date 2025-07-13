@@ -55,7 +55,7 @@ public class ChatApp extends Thread {
     @Override
     public void run() {
         // Starte Receiver...
-        UdpReceiver receiver = new UdpReceiver(chatSocket, 20, routingManager, this, ownAddress);
+        UdpReceiver receiver = new UdpReceiver(chatSocket, 20, routingManager, this, ownIP);
         receiver.start();
 
         System.out.println("Chat-Anwendung gestartet auf " + ownAddress);
