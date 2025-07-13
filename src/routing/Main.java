@@ -6,6 +6,7 @@ import java.net.*;
 
 public class Main {
     public static void main(String[] args) {
+        String ownAddress = "10.8.0.3";
 
         try {
             if (args.length < 1) {
@@ -14,14 +15,14 @@ public class Main {
             }
 
             // Lokale IP setzen – optional anpassen bei echtem Netzwerk
-            InetAddress ownIP = InetAddress.getByName("192.168.56.1");
+            InetAddress ownIP = InetAddress.getByName(ownAddress);
 
             int routingPort = Integer.parseInt(args[0]);
             int chatPort = routingPort + 1;
 
             // RoutingManager und ChatApp initialisieren
             RoutingManager manager = new RoutingManager(ownIP, routingPort);
-            ChatApp app = new ChatApp(manager, chatPort);
+            ChatApp app = new ChatApp(manager, chatPort,ownAddress);
 
             // Nachbarn hinzufügen, falls vorhanden
             for (int i = 1; i < args.length; i++) {

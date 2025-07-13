@@ -23,12 +23,14 @@ public class UdpReceiver {
     private final ExecutorService executorService;
     private final RoutingManager routingManager;
     private final ChatApp chatApp;
+    private final String ownAddress;
 
-    public UdpReceiver(DatagramSocket socket, int threadPoolSize, RoutingManager routingManager, ChatApp chatApp) {
+    public UdpReceiver(DatagramSocket socket, int threadPoolSize, RoutingManager routingManager, ChatApp chatApp, String ownAddress) {
         this.socket = socket;
         this.executorService = Executors.newFixedThreadPool(threadPoolSize);
         this.routingManager = routingManager;
         this.chatApp = chatApp;
+        this.ownAddress = ownAddress;
     }
 
     public void start() {
@@ -71,7 +73,7 @@ public class UdpReceiver {
                 System.out.println("Checksum OK for packet from " + senderIP + ":" + senderPort);
             }
 
-            InetAddress localAddress = InetAddress.getByName("192.168.56.1");
+            InetAddress localAddress = InetAddress.getByName(ownAddress);
             int localPort = socket.getLocalPort();
 
             boolean isForMe =

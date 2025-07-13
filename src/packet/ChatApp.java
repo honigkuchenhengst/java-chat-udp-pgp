@@ -37,22 +37,25 @@ public class ChatApp extends Thread {
     private final FileChunkManager fileChunkManager = new FileChunkManager();
     private final java.util.Map<Integer, Integer> fileAckMap = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<Integer, Integer> expectedChunkMap = new java.util.concurrent.ConcurrentHashMap<>();
+    private final String ownIP;
 
-    public ChatApp(RoutingManager routingManager, int chatPort) throws SocketException, UnknownHostException {
+    public ChatApp(RoutingManager routingManager, int chatPort, String ownAddress) throws SocketException, UnknownHostException {
         this.routingManager = routingManager;
         this.chatSocket = new DatagramSocket(chatPort);
         this.chatPort = chatPort;
         this.activeChatPartnerAddress = null;
         this.partnerIp = null;
         this.partnerPort = -1;
+        this.ownIP = ownAddress;
         // Speichere die eigene Adresse für die Nachrichten-Signatur
-        this.ownAddress = InetAddress.getLocalHost().getHostAddress() + ":" + this.chatPort;
+        //this.ownAddress = InetAddress.getLocalHost().getHostAddress() + ":" + this.chatPort;
+        this.ownAddress = InetAddress.getByName(ownIP) + ":" + this.chatPort;
     }
 
     @Override
     public void run() {
         // Starte Receiver...
-        UdpReceiver receiver = new UdpReceiver(chatSocket, 20, routingManager, this);
+        UdpReceiver receiver = new UdpReceiver(chatSocket, 20, routingManager, this, ownAddress);
         receiver.start();
 
         System.out.println("Chat-Anwendung gestartet auf " + ownAddress);
@@ -212,7 +215,9 @@ public class ChatApp extends Thread {
 
             // Header bauen
             PacketHeader header = new PacketHeader(
-                    InetAddress.getLocalHost(), this.chatPort,
+                    //InetAddress.getLocalHost(),
+                    InetAddress.getByName(ownIP),
+                    this.chatPort,
                     destIp, destPort,
                     packetType,
                     emptyPayload.serialize().length,
@@ -256,7 +261,9 @@ public class ChatApp extends Thread {
 
             // Header bauen
             PacketHeader header = new PacketHeader(
-                    InetAddress.getLocalHost(), this.chatPort,
+                    //InetAddress.getLocalHost(),
+                    InetAddress.getByName(ownIP)
+                    , this.chatPort,
                     destIp, destPort,
                     PacketType.MESSAGE,
                     payload.serialize().length,
@@ -326,7 +333,9 @@ public class ChatApp extends Thread {
                 FilePayload payload = new FilePayload(fileId, i, totalChunks, fname, chunkData);
                 int checksum = calculateChecksum(payload.serialize());
                 PacketHeader header = new PacketHeader(
-                        InetAddress.getLocalHost(), this.chatPort,
+                        //InetAddress.getLocalHost(),
+                        InetAddress.getByName(ownIP)
+                        , this.chatPort,
                         destIp, destPort,
                         PacketType.FILE,
                         payload.serialize().length,
@@ -408,7 +417,9 @@ public class ChatApp extends Thread {
         EmptyPayload payload = new EmptyPayload();
         int checksum = calculateChecksum(payload.serialize());
         PacketHeader header = new PacketHeader(
-                InetAddress.getLocalHost(), this.chatPort,
+                //InetAddress.getLocalHost(),
+                InetAddress.getByName(ownIP)
+                , this.chatPort,
                 ip, port,
                 type,
                 0,
@@ -422,7 +433,8 @@ public class ChatApp extends Thread {
         AckPayload payload = new AckPayload(fileId, ackNumber);
         int checksum = calculateChecksum(payload.serialize());
         PacketHeader header = new PacketHeader(
-                InetAddress.getLocalHost(), this.chatPort,
+                //InetAddress.getLocalHost(),
+                InetAddress.getByName(ownIP), this.chatPort,
                 ip, port - 1,
                 PacketType.DATA_ACK,
                 payload.serialize().length,
