@@ -404,11 +404,11 @@ public class ChatApp extends Thread {
                     lastSend[nextSeq] = System.currentTimeMillis();
                     nextSeq++;
                 }
-
                 synchronized (ackMap) {
                     try {
                         long wait = timeout - (System.currentTimeMillis() - lastSend[base]);
-                        if (wait > 0 && ackMap.get(fileId) <= base) {
+                        if (wait > 0 && ackMap.get(fileId) <= base + GoBackNConfig.WINDOW_SIZE) {
+                            System.out.println("Ich warte jetzt");
                             ackMap.wait(wait);
                         }
                     } catch (InterruptedException ignored) {}
