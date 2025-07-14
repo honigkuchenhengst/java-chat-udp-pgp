@@ -42,6 +42,12 @@ public class MessagePayload extends Payload {
     public String getMessageText() {
         return messageText;
     }
+    public int getMessageId() {
+        return messageId;
+    }
+    public int getChunkNumber() {
+        return chunkNumber;
+    }
 
     @Override
     public String toString() {

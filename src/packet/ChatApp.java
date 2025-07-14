@@ -529,6 +529,15 @@ public class ChatApp extends Thread {
                 if (packet.getPayload() instanceof MessagePayload) {
                     MessagePayload mp = (MessagePayload) packet.getPayload();
                     System.out.println("Nachricht empfangen: " + mp.getMessageText());
+                    try {
+                        System.out.println("MsgID: " + mp.getMessageId());
+                        System.out.println("ChunkNum: " + mp.getChunkNumber());
+                        System.out.println("SRCPort: " + header.getSourcePort());
+                        System.out.println("SRCIp: " + header.getSourceIp());
+                        sendAckPacket(header.getSourceIp(), header.getSourcePort(), mp.getMessageId(), mp.getChunkNumber());
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
                 }
                 break;
             case FILE:
