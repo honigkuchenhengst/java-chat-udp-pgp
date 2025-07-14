@@ -27,6 +27,10 @@ public class MessagePayload extends Payload {
         return buffer.array();
     }
 
+    public byte[] getTextBytes() {
+        return messageText.getBytes(StandardCharsets.US_ASCII);
+    }
+
     public static MessagePayload deserialize(byte[] data, int lengthData) {
         ByteBuffer buffer = ByteBuffer.wrap(data);
         int messageId = buffer.getShort() & 0xFFFF;
@@ -49,6 +53,13 @@ public class MessagePayload extends Payload {
         return chunkNumber;
     }
 
+    public int getTotalChunks() {
+        return totalChunks;
+    }
+
+    public byte[] getData(){
+        return serialize();
+    }
     @Override
     public String toString() {
         return "MessagePayload{" +

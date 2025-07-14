@@ -11,7 +11,7 @@ public class AckPayload extends Payload {
         this.ackNumber = ackNumber;
     }
 
-    public int getFileId() {
+    public int getId() {
         return fileId;
     }
 

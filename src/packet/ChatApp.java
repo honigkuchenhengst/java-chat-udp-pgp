@@ -1,11 +1,13 @@
 package packet;
 
+import chunking.MessageChunk;
 import routing.RoutingManager;
 import udpSocket.UdpReceiver;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
 import java.util.zip.CRC32;
 import java.io.File;
@@ -17,13 +19,13 @@ import chunking.FileChunkManager;
 import static packet.PacketType.*;
 
 import java.io.IOException;
+import chunking.MessageChunkManager;
 
 public class ChatApp extends Thread {
     private final RoutingManager routingManager;
     private final DatagramSocket chatSocket;
     private final int chatPort;
     private String activeChatPartnerAddress; // Speichert die IP:Port des Chatpartners als String
-    private int messageIdCounter = 0;
     private String ownAddress; // Die eigene Adresse für die Anzeige in Nachrichten
     private ConnectionState connectionState = ConnectionState.DISCONNECTED;
     private InetAddress partnerIp;
@@ -33,10 +35,12 @@ public class ChatApp extends Thread {
     private boolean closeAfterSend = false;
     private String pendingFilePath = null;
     private boolean sendFileAfterConnect = false;
-    private int fileIdCounter = 0;
+    private int idCounter = 0;
     private final FileChunkManager fileChunkManager = new FileChunkManager();
-    private final java.util.Map<Integer, Integer> fileAckMap = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Map<Integer, Integer> ackMap = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<Integer, Integer> expectedChunkMap = new java.util.concurrent.ConcurrentHashMap<>();
+    private final MessageChunkManager messageChunkManager = new MessageChunkManager();
+    private final java.util.Map<Integer, Integer> expectedMsgChunkMap = new java.util.concurrent.ConcurrentHashMap<>();
     private final String ownIP;
 
     public ChatApp(RoutingManager routingManager, int chatPort, String ownAddress) throws SocketException, UnknownHostException {
@@ -70,14 +74,18 @@ public class ChatApp extends Thread {
             if (input.trim().isEmpty()) continue;
 
             if (input.startsWith("/")) {
-                handleCommand(input);
+                try {
+                    handleCommand(input);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
             } else {
                 handleMessageInput(input);
             }
         }
     }
 
-    private void handleCommand(String commandInput) {
+    private void handleCommand(String commandInput) throws IOException {
         String[] parts = commandInput.trim().split("\\s+", 3);
         String command = parts[0].toLowerCase();
 
@@ -100,12 +108,9 @@ public class ChatApp extends Thread {
                         initiateHandshake(parts[1]);
                     } else {
                         sendMessage(parts[1], parts[2]);
-                        try {
-                            sendControlPacket(FIN, partnerIp, partnerPort);
-                            connectionState = ConnectionState.FIN_WAIT;
-                        } catch (Exception e) {
-                            // ignore
-                        }
+                        sendControlPacket(FIN, partnerIp, partnerPort);
+                        connectionState = ConnectionState.FIN_WAIT;
+
 
                     }
                 }
@@ -236,6 +241,7 @@ public class ChatApp extends Thread {
      * Sendet eine Nachricht an eine Ziel-Adresse (IP:Port).
      */
     private void sendMessage(String destinationAddress, String messageText) {
+        /*
         try {
             // Parse die Ziel-Adresse
             String[] addrParts = destinationAddress.split(":");
@@ -279,6 +285,93 @@ public class ChatApp extends Thread {
         } catch (NumberFormatException e) {
             System.out.println("FEHLER: Ungültiger Port in Adresse '" + destinationAddress + "'.");
         }
+
+         */
+        try {
+            String[] addrParts = destinationAddress.split(":");
+            if (addrParts.length != 2) {
+                System.out.println("FEHLER: Ungültiges Adressformat. Erwartet: IP:Port");
+                return;
+            }
+            InetAddress destIp = InetAddress.getByName(addrParts[0]);
+            int destPort = Integer.parseInt(addrParts[1]) + 1; //HeaderChat
+
+            if (connectionState != ConnectionState.CONNECTED) {
+                System.out.println("Keine Verbindung. Fuehre zuerst /chat fuer den Handshake aus.");
+                return;
+            }
+
+
+
+            byte[] msgData = messageText.getBytes(StandardCharsets.US_ASCII);
+
+            int msgId = idCounter++;
+            int mtu = 1000;
+            int chunkSize = mtu - 10;
+
+            int totalChunks =  (msgData.length > chunkSize ?
+                    (int) Math.ceil((msgData.length - chunkSize) / (double) chunkSize) : 0) + 1;
+
+            java.util.List<Packet> packets = new java.util.ArrayList<>();
+            int offset = 0;
+            for (int i = 0; i < totalChunks; i++) {
+                byte[] chunkData;
+                    int len = Math.min(chunkSize, msgData.length - offset);
+                    chunkData = new byte[len];
+                    System.arraycopy(msgData, offset, chunkData, 0, len);
+                    offset += len;
+
+
+                MessagePayload payload = new MessagePayload(msgId, i, totalChunks, new String(chunkData, StandardCharsets.US_ASCII));
+                int checksum = calculateChecksum(payload.serialize());
+                PacketHeader header = new PacketHeader(
+                        //InetAddress.getLocalHost(),
+                        InetAddress.getByName(ownIP)
+                        , this.chatPort,
+                        destIp, destPort,
+                        MESSAGE,
+                        payload.serialize().length,
+                        checksum
+                );
+                packets.add(new Packet(header, payload));
+            }
+
+            ackMap.put(msgId, 0);
+            int base = 0;
+            int nextSeq = 0;
+            long[] lastSend = new long[totalChunks];
+            long timeout = 1000;
+
+            while (base < totalChunks) {
+                System.out.println("Base: " + base + "\ntotChunk: " + totalChunks);
+                while (nextSeq < base + GoBackNConfig.WINDOW_SIZE && nextSeq < totalChunks) {
+                    routingManager.sendMessageTo(chatSocket, destIp, destPort - 1, packets.get(nextSeq));
+                    lastSend[nextSeq] = System.currentTimeMillis();
+                    nextSeq++;
+                }
+
+                synchronized (ackMap) {
+                    try {
+                        long wait = timeout - (System.currentTimeMillis() - lastSend[base]);
+                        if (wait > 0 && ackMap.get(msgId) <= base) {
+                            ackMap.wait(wait);
+                        }
+                    } catch (InterruptedException ignored) {}
+
+                    int acked = ackMap.get(msgId);
+                    if (acked > base) {
+                        base = acked;
+                    } else {
+                        nextSeq = base;
+                    }
+                }
+            }
+            ackMap.remove(msgId);
+
+        } catch (Exception e) {
+            System.out.println("FEHLER beim Senden der Datei: " + e.getMessage());
+        }
+
     }
 
     private void sendFile(String destinationAddress, String path) {
@@ -304,7 +397,7 @@ public class ChatApp extends Thread {
 
             byte[] fileData = Files.readAllBytes(file.toPath());
 
-            int fileId = fileIdCounter++;
+            int fileId = idCounter++;
             int mtu = 1000;
             int firstChunkSize = mtu - 40;
             int otherChunkSize = mtu - 10;
@@ -344,7 +437,7 @@ public class ChatApp extends Thread {
                 packets.add(new Packet(header, payload));
             }
 
-            fileAckMap.put(fileId, 0);
+            ackMap.put(fileId, 0);
             int base = 0;
             int nextSeq = 0;
             long[] lastSend = new long[totalChunks];
@@ -357,15 +450,15 @@ public class ChatApp extends Thread {
                     nextSeq++;
                 }
 
-                synchronized (fileAckMap) {
+                synchronized (ackMap) {
                     try {
                         long wait = timeout - (System.currentTimeMillis() - lastSend[base]);
-                        if (wait > 0 && fileAckMap.get(fileId) <= base) {
-                            fileAckMap.wait(wait);
+                        if (wait > 0 && ackMap.get(fileId) <= base) {
+                            ackMap.wait(wait);
                         }
                     } catch (InterruptedException ignored) {}
 
-                    int acked = fileAckMap.get(fileId);
+                    int acked = ackMap.get(fileId);
                     if (acked > base) {
                         base = acked;
                     } else {
@@ -373,8 +466,9 @@ public class ChatApp extends Thread {
                     }
                 }
             }
-            fileAckMap.remove(fileId);
-            sendControlPacket(FIN,destIp,destPort);
+            ackMap.remove(fileId);
+            sendControlPacket(FIN, destIp, destPort);
+            connectionState = ConnectionState.FIN_WAIT;
 
         } catch (Exception e) {
             System.out.println("FEHLER beim Senden der Datei: " + e.getMessage());
@@ -526,6 +620,7 @@ public class ChatApp extends Thread {
                 }
                 break;
             case MESSAGE:
+                /*
                 if (packet.getPayload() instanceof MessagePayload) {
                     MessagePayload mp = (MessagePayload) packet.getPayload();
                     System.out.println("Nachricht empfangen: " + mp.getMessageText());
@@ -537,6 +632,26 @@ public class ChatApp extends Thread {
                         sendAckPacket(header.getSourceIp(), header.getSourcePort(), mp.getMessageId(), mp.getChunkNumber());
                     } catch (IOException e) {
                         throw new RuntimeException(e);
+                    }
+                }
+                */
+                if (packet.getPayload() instanceof MessagePayload) {
+                    MessagePayload mp = (MessagePayload) packet.getPayload();
+                    MessageChunk chunk = new MessageChunk(mp.getMessageId(), mp.getChunkNumber(), mp.getTotalChunks(), mp.getTextBytes());
+                    messageChunkManager.addChunk(chunk);
+                    int expected = expectedMsgChunkMap.getOrDefault(mp.getMessageId(), 0);
+                    if (mp.getChunkNumber() == expected) {
+                        expectedMsgChunkMap.put(mp.getMessageId(), expected + 1);
+                    }
+                    int nextExpected = expectedMsgChunkMap.getOrDefault(mp.getMessageId(), 0);
+                    try {
+                        sendAckPacket(header.getSourceIp(), header.getSourcePort(), mp.getMessageId(), nextExpected);
+                    } catch (IOException e) {
+                        // ignore
+                    }
+                    if (messageChunkManager.isComplete(mp.getMessageId())) {
+                        byte[] mdata = messageChunkManager.assembleMessage(mp.getMessageId());
+                        System.out.println("Nachricht empfangen: " + new String(mdata, StandardCharsets.US_ASCII));
                     }
                 }
                 break;
@@ -575,10 +690,10 @@ public class ChatApp extends Thread {
                 System.out.println("ACK ACK ACK");
                 if (packet.getPayload() instanceof AckPayload) {
                     AckPayload ap = (AckPayload) packet.getPayload();
-                    System.out.println("AckNummer: " + ap.getAckNumber() + "\nMessageID: " + ap.getFileId());
-                    synchronized (fileAckMap) {
-                        fileAckMap.put(ap.getFileId(), ap.getAckNumber());
-                        fileAckMap.notifyAll();
+                    System.out.println("AckNummer: " + ap.getAckNumber() + "\nMessageID: " + ap.getId());
+                    synchronized (ackMap) {
+                        ackMap.put(ap.getId(), ap.getAckNumber());
+                        ackMap.notifyAll();
                     }
                 }
                 break;
