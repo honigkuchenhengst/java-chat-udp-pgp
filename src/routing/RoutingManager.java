@@ -41,16 +41,6 @@ public class RoutingManager {
 
     public void addNeighbor(InetAddress neighborIP, int neighborPort) {
         neighbors.add(new Neighbor(neighborIP, neighborPort));
-        // Trage Nachbar initial mit HopCount 1 ein
-        //TODO halte ich für keine gute Idee, wenn es den Nachbar nicht gibt hat man ihn trotzdem in der Tabelle
-        /*
-        routingTable.addEntry(new RoutingEntry(
-                neighborIP, neighborPort,
-                neighborIP, neighborPort,
-                1
-        ));
-                */
-
     }
 
     public void start() {
@@ -64,7 +54,7 @@ public class RoutingManager {
     }
 
     public void receiveLoop() {
-        byte[] buf = new byte[2048];
+        byte[] buf = new byte[1024];
         while (true) {
             try {
                 DatagramPacket packet = new DatagramPacket(buf, buf.length);

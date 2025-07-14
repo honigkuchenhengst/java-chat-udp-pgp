@@ -65,17 +65,4 @@ public class FileChunk {
                 ByteBuffer.wrap(totalChunksBytes).getInt(),
                 data, fileNameBytes);
     }
-
-    public static void main(String[] args) {
-        String titel = "Titel einer Datei";
-        byte[] titelBytes = new byte[30];
-        System.arraycopy(titel.getBytes(), 0, titelBytes, 0, titel.getBytes().length);
-        FileChunk fC = new FileChunk(1, 0, 3, new byte[4], titelBytes);
-        FileChunk fC2 = FileChunk.parseChunk(fC.getChunk());
-        System.out.println(fC2.getFileId());
-        System.out.println(fC2.getChunkNumber());
-        System.out.println(fC2.getTotalChunks());
-        String titleRecon = new String(fC2.getFileName(), StandardCharsets.UTF_8);
-        System.out.println(titleRecon);
-    }
 }

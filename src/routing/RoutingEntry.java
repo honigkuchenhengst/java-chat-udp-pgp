@@ -67,9 +67,6 @@ public class RoutingEntry {
         );
     }
 
-
-
-    // Getter für später
     public InetAddress getDestinationIP() { return destinationIP; }
     public int getDestinationPort() { return destinationPort; }
     public InetAddress getNextHopIP() { return nextHopIP; }

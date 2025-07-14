@@ -8,7 +8,7 @@ import java.util.List;
 
 public class RoutingTable {
 
-    private List<RoutingEntry> entries; //TODO Warum nicht dict, dann könnte man die zieladressen als key nutzen und sich den komischen optional ausdruck in RoutingManager sparen
+    private List<RoutingEntry> entries;
 
     public RoutingTable() {
         this.entries = new ArrayList<>();
@@ -74,7 +74,6 @@ public class RoutingTable {
         for (int i = 0; i < tableLength; i += 16) {
             byte[] entryData = new byte[16];
             buffer.get(entryData);
-            //TODO gesonderter Umgang mit IllegalArgumentExc
             RoutingEntry entry = RoutingEntry.deserialize(entryData);
             table.addEntry(entry);
         }

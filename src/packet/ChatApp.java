@@ -241,52 +241,7 @@ public class ChatApp extends Thread {
      * Sendet eine Nachricht an eine Ziel-Adresse (IP:Port).
      */
     private void sendMessage(String destinationAddress, String messageText) {
-        /*
-        try {
-            // Parse die Ziel-Adresse
-            String[] addrParts = destinationAddress.split(":");
-            if (addrParts.length != 2) {
-                System.out.println("FEHLER: Ungültiges Adressformat. Erwartet: IP:Port");
-                return;
-            }
-            InetAddress destIp = InetAddress.getByName(addrParts[0]);
-            int destPort = Integer.parseInt(addrParts[1]) + 1; //HeaderChat
 
-            if (connectionState != ConnectionState.CONNECTED) {
-                System.out.println("Keine Verbindung. Fuehre zuerst /chat fuer den Handshake aus.");
-                return;
-            }
-
-            // Payload bauen (ohne Namen)
-            MessagePayload payload = new MessagePayload(
-                    messageIdCounter++, 0, 1, "[" + this.ownAddress + "]: " + messageText
-            );
-
-            // Checksumme berechnen
-            int checksum = calculateChecksum(payload.serialize());
-
-            // Header bauen
-            PacketHeader header = new PacketHeader(
-                    //InetAddress.getLocalHost(),
-                    InetAddress.getByName(ownIP)
-                    , this.chatPort,
-                    destIp, destPort,
-                    PacketType.MESSAGE,
-                    payload.serialize().length,
-                    checksum
-            );
-
-            // Packet bauen & über den RoutingManager verschicken
-            Packet packet = new Packet(header, payload);
-            routingManager.sendMessageTo(chatSocket, destIp, destPort - 1, packet);
-
-        } catch (UnknownHostException e) {
-            System.out.println("FEHLER: Host '" + destinationAddress + "' ist unbekannt.");
-        } catch (NumberFormatException e) {
-            System.out.println("FEHLER: Ungültiger Port in Adresse '" + destinationAddress + "'.");
-        }
-
-         */
         try {
             String[] addrParts = destinationAddress.split(":");
             if (addrParts.length != 2) {
@@ -620,21 +575,6 @@ public class ChatApp extends Thread {
                 }
                 break;
             case MESSAGE:
-                /*
-                if (packet.getPayload() instanceof MessagePayload) {
-                    MessagePayload mp = (MessagePayload) packet.getPayload();
-                    System.out.println("Nachricht empfangen: " + mp.getMessageText());
-                    try {
-                        System.out.println("MsgID: " + mp.getMessageId());
-                        System.out.println("ChunkNum: " + mp.getChunkNumber());
-                        System.out.println("SRCPort: " + header.getSourcePort());
-                        System.out.println("SRCIp: " + header.getSourceIp());
-                        sendAckPacket(header.getSourceIp(), header.getSourcePort(), mp.getMessageId(), mp.getChunkNumber());
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
-                */
                 if (packet.getPayload() instanceof MessagePayload) {
                     MessagePayload mp = (MessagePayload) packet.getPayload();
                     MessageChunk chunk = new MessageChunk(mp.getMessageId(), mp.getChunkNumber(), mp.getTotalChunks(), mp.getTextBytes());

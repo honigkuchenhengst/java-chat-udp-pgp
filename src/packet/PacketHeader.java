@@ -83,45 +83,7 @@ public class PacketHeader {
     }
 
 
-    // Getter + toString() falls Logs brauchen
 
-    public static void main(String[] args) throws Exception {
-        try {
-            // Erstelle Beispiel PacketHeader
-            InetAddress sourceIP = InetAddress.getByName("192.168.0.1");
-            int sourcePort = 5000;
-            InetAddress destIP = InetAddress.getByName("192.168.0.2");
-            int destPort = 6000;
-            PacketType type = PacketType.MESSAGE;
-            int length = 123;
-            int checksum = 456;
-
-            PacketHeader originalHeader = new PacketHeader(sourceIP, sourcePort, destIP, destPort, type, length, checksum);
-
-            // Serialisieren
-            byte[] data = originalHeader.serialize();
-
-            // Deserialisieren
-            PacketHeader deserializedHeader = PacketHeader.deserialize(data);
-
-            // Ausgabe zum Vergleich
-            System.out.println("Original Header:");
-            System.out.println(originalHeader);
-            System.out.println("Serialzed Header:");
-            System.out.println(Arrays.toString(data));
-            System.out.println("Deserialized Header:");
-            System.out.println(deserializedHeader);
-
-            // Einfacher Vergleich
-            if (originalHeader.toString().equals(deserializedHeader.toString())) {
-                System.out.println("TEST SUCCESS: Header wurde korrekt serialisiert/deserialisiert.");
-            } else {
-                System.out.println("TEST FAILURE: Unterschied beim Header.");
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 
     public PacketType getType() {
         return type;
@@ -141,10 +103,6 @@ public class PacketHeader {
 
     public int getDestPort() {
         return destPort;
-    }
-
-    public int getPacketLength() {
-        return packetLength;
     }
 
     public int getChecksum() {

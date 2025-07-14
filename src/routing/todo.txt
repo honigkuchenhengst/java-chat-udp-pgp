@@ -1,3 +1,0 @@
-Exception, falls angegebener port ungerade
-30, 90 sek Timer bei infinity und folgendes löschen
-Bei initiierung eines Routers port angeben, aber IP automatisch feststellen
