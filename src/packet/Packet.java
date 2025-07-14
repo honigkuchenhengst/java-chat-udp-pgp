@@ -36,7 +36,7 @@ public class Packet {
                 payload = FilePayload.deserialize(payloadBytes);
                 break;
             case MESSAGE:
-                payload = MessagePayload.deserialize(payloadBytes);
+                payload = MessagePayload.deserialize(payloadBytes, payloadBytes.length);
                 break;
             case SYN:
             case SYN_ACK:

@@ -226,7 +226,7 @@ public class ChatApp extends Thread {
 
             // Packet bauen & über den RoutingManager verschicken
             Packet packet = new Packet(header, emptyPayload);
-            routingManager.sendMessageTo(chatSocket, destIp, destPort, packet);
+            routingManager.sendMessageTo(chatSocket, destIp, destPort - 1, packet);
         } catch (UnknownHostException e) {
             throw new RuntimeException(e);
         }
@@ -253,7 +253,7 @@ public class ChatApp extends Thread {
 
             // Payload bauen (ohne Namen)
             MessagePayload payload = new MessagePayload(
-                    messageIdCounter++, 1, 1, "[" + this.ownAddress + "]: " + messageText
+                    messageIdCounter++, 0, 1, "[" + this.ownAddress + "]: " + messageText
             );
 
             // Checksumme berechnen
@@ -272,7 +272,7 @@ public class ChatApp extends Thread {
 
             // Packet bauen & über den RoutingManager verschicken
             Packet packet = new Packet(header, payload);
-            routingManager.sendMessageTo(chatSocket, destIp, destPort, packet);
+            routingManager.sendMessageTo(chatSocket, destIp, destPort - 1, packet);
 
         } catch (UnknownHostException e) {
             System.out.println("FEHLER: Host '" + destinationAddress + "' ist unbekannt.");
@@ -309,8 +309,8 @@ public class ChatApp extends Thread {
             int firstChunkSize = mtu - 40;
             int otherChunkSize = mtu - 10;
 
-            int totalChunks = 1 + (fileData.length > firstChunkSize ?
-                    (int) Math.ceil((fileData.length - firstChunkSize) / (double) otherChunkSize) : 0);
+            int totalChunks =  (fileData.length > firstChunkSize ?
+                    (int) Math.ceil((fileData.length - firstChunkSize) / (double) otherChunkSize) : 0) + 1;
 
             java.util.List<Packet> packets = new java.util.ArrayList<>();
             int offset = 0;
@@ -352,7 +352,7 @@ public class ChatApp extends Thread {
 
             while (base < totalChunks) {
                 while (nextSeq < base + GoBackNConfig.WINDOW_SIZE && nextSeq < totalChunks) {
-                    routingManager.sendMessageTo(chatSocket, destIp, destPort, packets.get(nextSeq));
+                    routingManager.sendMessageTo(chatSocket, destIp, destPort - 1, packets.get(nextSeq));
                     lastSend[nextSeq] = System.currentTimeMillis();
                     nextSeq++;
                 }
@@ -427,7 +427,7 @@ public class ChatApp extends Thread {
                 checksum
         );
         Packet p = new Packet(header, payload);
-        routingManager.sendMessageTo(chatSocket, ip, port, p);
+        routingManager.sendMessageTo(chatSocket, ip, port - 1, p);
     }
 
     private void sendAckPacket(InetAddress ip, int port, int fileId, int ackNumber) throws IOException {
@@ -436,7 +436,7 @@ public class ChatApp extends Thread {
         PacketHeader header = new PacketHeader(
                 //InetAddress.getLocalHost(),
                 InetAddress.getByName(ownIP), this.chatPort,
-                ip, port - 1,
+                ip, port,
                 PacketType.DATA_ACK,
                 payload.serialize().length,
                 checksum
@@ -473,7 +473,7 @@ public class ChatApp extends Thread {
             case SYN:
                 if (connectionState == ConnectionState.DISCONNECTED) {
                     partnerIp = header.getSourceIp();
-                    partnerPort = header.getSourcePort() - 1;
+                    partnerPort = header.getSourcePort();
                     activeChatPartnerAddress = source;
                     try {
                         sendControlPacket(SYN_ACK, partnerIp, partnerPort);
@@ -566,6 +566,7 @@ public class ChatApp extends Thread {
                 System.out.println("ACK ACK ACK");
                 if (packet.getPayload() instanceof AckPayload) {
                     AckPayload ap = (AckPayload) packet.getPayload();
+                    System.out.println("AckNummer: " + ap.getAckNumber() + "\nMessageID: " + ap.getFileId());
                     synchronized (fileAckMap) {
                         fileAckMap.put(ap.getFileId(), ap.getAckNumber());
                         fileAckMap.notifyAll();

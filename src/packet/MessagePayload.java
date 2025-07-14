@@ -23,18 +23,17 @@ public class MessagePayload extends Payload {
         buffer.putShort((short) messageId);
         buffer.putInt(chunkNumber);
         buffer.putInt(totalChunks);
-        buffer.putShort((short) textBytes.length);
         buffer.put(textBytes);
         return buffer.array();
     }
 
-    public static MessagePayload deserialize(byte[] data) {
+    public static MessagePayload deserialize(byte[] data, int lengthData) {
         ByteBuffer buffer = ByteBuffer.wrap(data);
         int messageId = buffer.getShort() & 0xFFFF;
         int chunkNumber = buffer.getInt();
         int totalChunks = buffer.getInt();
-        int textLength = buffer.getShort() & 0xFFFF;
-        byte[] textBytes = new byte[textLength];
+        System.out.println(buffer.remaining());
+        byte[] textBytes = new byte[lengthData - 10]; //-10 fuer payloadHeader
         buffer.get(textBytes);
         String messageText = new String(textBytes, StandardCharsets.US_ASCII);
         return new MessagePayload(messageId, chunkNumber, totalChunks, messageText);

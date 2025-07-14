@@ -6,7 +6,7 @@ import java.net.*;
 
 public class Main {
     public static void main(String[] args) {
-        String ownAddress = "10.8.0.2";
+        String ownAddress = "192.168.56.1";
 
         try {
             if (args.length < 1) {
