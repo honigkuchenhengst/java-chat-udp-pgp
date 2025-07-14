@@ -367,7 +367,7 @@ public class RoutingManager {
             int destPort = packet.getHeader().getDestPort();
 
             DatagramPacket datagramPacket = new DatagramPacket(serializedData, serializedData.length, destIp, destPort + 1);
-            sendMessageTo(socket, destIp, destPort , packet);
+            sendMessageTo(socket, destIp, destPort - 1 , packet);
             //socket.send(datagramPacket);
 
             System.out.println("Weitergeleitet an " + destIp.getHostAddress() + ":" + destPort +
